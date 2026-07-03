@@ -5,6 +5,7 @@ import {
   leadsTable,
   leadEventsTable,
   followupsTable,
+  referralsTable,
   submitQuizSchema,
   LEAD_STATUSES,
   FOLLOWUP_STATUSES,
@@ -23,6 +24,23 @@ const TERMINAL_STATUSES = new Set(["agendado", "compareceu", "fechado", "perdido
 
 function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name.trim();
+}
+
+/** Gera um código de indicação único (ex: IND-A1B2C3). */
+async function generateReferralCode(): Promise<string> {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let attempt = 0; attempt < 8; attempt++) {
+    let suffix = "";
+    for (let i = 0; i < 6; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const code = `IND-${suffix}`;
+    const [exists] = await db
+      .select({ id: referralsTable.id })
+      .from(referralsTable)
+      .where(eq(referralsTable.code, code))
+      .limit(1);
+    if (!exists) return code;
+  }
+  return `IND-${Date.now().toString(36).toUpperCase()}`;
 }
 
 /** Gera a fila de follow-up de um lead conforme a cadência da sua temperatura. */
@@ -157,8 +175,19 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
     return;
   }
 
-  const { name, phone, email, source, answers } = parsed.data;
+  const { name, phone, email, source, ref, answers } = parsed.data;
   const { score, temperature, segment, band, leadAnswers } = scoreSubmission(quiz, answers);
+
+  // Atribuição de indicação: valida o código e conta a conversão
+  let referredByCode: string | null = null;
+  if (ref) {
+    const [referral] = await db
+      .select({ code: referralsTable.code })
+      .from(referralsTable)
+      .where(and(eq(referralsTable.code, ref), eq(referralsTable.active, true)))
+      .limit(1);
+    if (referral) referredByCode = referral.code;
+  }
 
   const resultTitle = band?.title ?? "Recebemos suas respostas";
   const resultMessage =
@@ -178,6 +207,7 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
       temperature,
       status: "novo",
       source: source ?? null,
+      referredByCode,
       resultShown: resultMessage,
     })
     .returning();
@@ -425,6 +455,102 @@ router.post("/quizzes/seed", async (req: Request, res: Response): Promise<void> 
 
   const created = await db.insert(quizzesTable).values(toCreate).returning({ slug: quizzesTable.slug });
   res.status(201).json({ created: created.length, slugs: created.map((c) => c.slug) });
+});
+
+// ---- Indicações (referral) ------------------------------------------------
+
+// PÚBLICO: registra um clique no link de indicação e devolve para onde ir
+router.get("/public/referral/:code", async (req: Request, res: Response): Promise<void> => {
+  const code = String(req.params.code);
+  const [referral] = await db
+    .select()
+    .from(referralsTable)
+    .where(and(eq(referralsTable.code, code), eq(referralsTable.active, true)))
+    .limit(1);
+  if (!referral) {
+    res.status(404).json({ error: "Indicação inválida" });
+    return;
+  }
+  await db
+    .update(referralsTable)
+    .set({ clicks: referral.clicks + 1 })
+    .where(eq(referralsTable.id, referral.id));
+  res.json({
+    code: referral.code,
+    quizSlug: referral.quizSlug,
+    referrer: firstName(referral.patientName),
+  });
+});
+
+router.get("/referrals", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const referrals = await db.select().from(referralsTable).orderBy(desc(referralsTable.createdAt));
+
+  // leads gerados e conversões por código
+  const generated = await db
+    .select({ code: leadsTable.referredByCode, total: count() })
+    .from(leadsTable)
+    .groupBy(leadsTable.referredByCode);
+  const won = await db
+    .select({ code: leadsTable.referredByCode, total: count() })
+    .from(leadsTable)
+    .where(eq(leadsTable.status, "fechado"))
+    .groupBy(leadsTable.referredByCode);
+
+  const genMap = new Map(generated.map((g) => [g.code, Number(g.total)]));
+  const wonMap = new Map(won.map((w) => [w.code, Number(w.total)]));
+
+  res.json(
+    referrals.map((r) => ({
+      ...r,
+      leadsGenerated: genMap.get(r.code) ?? 0,
+      conversions: wonMap.get(r.code) ?? 0,
+    })),
+  );
+});
+
+router.post("/referrals", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const { patientName, patientPhone, specialty, quizSlug, rewardNote } = req.body as {
+    patientName?: string;
+    patientPhone?: string;
+    specialty?: string;
+    quizSlug?: string;
+    rewardNote?: string;
+  };
+  if (!patientName || patientName.trim().length < 2) {
+    res.status(400).json({ error: "Informe o nome de quem indica" });
+    return;
+  }
+  const code = await generateReferralCode();
+  const [created] = await db
+    .insert(referralsTable)
+    .values({
+      code,
+      patientName: patientName.trim(),
+      patientPhone: patientPhone?.trim() || null,
+      specialty: specialty ?? "ortopedia",
+      quizSlug: quizSlug || null,
+      rewardNote: rewardNote?.trim() || null,
+    })
+    .returning();
+  res.status(201).json(created);
+});
+
+router.patch("/referrals/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = Number(req.params.id);
+  const body = req.body as Partial<typeof referralsTable.$inferInsert>;
+  const allowed: Partial<typeof referralsTable.$inferInsert> = {};
+  for (const k of ["patientName", "patientPhone", "specialty", "quizSlug", "rewardNote", "active"] as const) {
+    if (k in body) (allowed as Record<string, unknown>)[k] = body[k];
+  }
+  const [updated] = await db.update(referralsTable).set(allowed).where(eq(referralsTable.id, id)).returning();
+  if (!updated) {
+    res.status(404).json({ error: "Indicação não encontrada" });
+    return;
+  }
+  res.json(updated);
 });
 
 // ---- Follow-ups (cadência) ------------------------------------------------

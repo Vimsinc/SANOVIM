@@ -45,6 +45,16 @@ export default function PublicQuiz() {
   const [email, setEmail] = useState("");
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ref, setRef] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Código de indicação (?ref=IND-XXXX): registra o clique e guarda para atribuir
+    const code = new URLSearchParams(window.location.search).get("ref");
+    if (code) {
+      setRef(code);
+      fetch(`/api/sales/public/referral/${encodeURIComponent(code)}`).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -81,6 +91,7 @@ export default function PublicQuiz() {
         phone: phone.trim(),
         email: email.trim() || undefined,
         source: new URLSearchParams(window.location.search).get("utm_source") || undefined,
+        ref: ref || undefined,
         answers: quiz.questions.map((q) => ({
           questionId: q.id,
           optionIndex: answers[q.id] ?? 0,

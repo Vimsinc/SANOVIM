@@ -99,6 +99,8 @@ export const leadsTable = pgTable("vibe_leads", {
   lostReason: text("lost_reason"),
   // Origem: utm_source / parceria / anúncio
   source: text("source"),
+  // Código do programa de indicação que trouxe este lead (se houver)
+  referredByCode: text("referred_by_code"),
   // Mensagem de resultado mostrada ao paciente
   resultShown: text("result_shown"),
   notes: text("notes"),
@@ -146,12 +148,34 @@ export const followupsTable = pgTable("vibe_followups", {
 export type Followup = typeof followupsTable.$inferSelect;
 export type InsertFollowup = typeof followupsTable.$inferInsert;
 
+// Programa de indicação — um código por paciente que indica
+export const referralsTable = pgTable("vibe_referrals", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  // Nome de quem indica (paciente embaixador)
+  patientName: text("patient_name").notNull(),
+  patientPhone: text("patient_phone"),
+  specialty: text("specialty").notNull().default("ortopedia"),
+  // Quiz-alvo para onde o link de indicação aponta
+  quizSlug: text("quiz_slug"),
+  // Vantagem oferecida a quem indica (ex: "1 reavaliação grátis")
+  rewardNote: text("reward_note"),
+  // Cliques no link de indicação
+  clicks: integer("clicks").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Referral = typeof referralsTable.$inferSelect;
+export type InsertReferral = typeof referralsTable.$inferInsert;
+
 // Zod para validar submissão pública do quiz
 export const submitQuizSchema = z.object({
   name: z.string().min(2).max(120),
   phone: z.string().min(8).max(30),
   email: z.string().email().max(160).optional().or(z.literal("")),
   source: z.string().max(120).optional(),
+  ref: z.string().max(60).optional(),
   answers: z
     .array(
       z.object({

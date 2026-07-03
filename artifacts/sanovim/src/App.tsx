@@ -14,6 +14,7 @@ import Admin from "@/pages/Admin";
 import Leads from "@/pages/Leads";
 import Funnel from "@/pages/Funnel";
 import Followups from "@/pages/Followups";
+import Referrals from "@/pages/Referrals";
 import PublicQuiz from "@/pages/PublicQuiz";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -68,6 +69,7 @@ function AppLayout() {
           <Route path="/leads" component={Leads} />
           <Route path="/retornos" component={Followups} />
           <Route path="/funil" component={Funnel} />
+          <Route path="/indicacoes" component={Referrals} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
         </Switch>
