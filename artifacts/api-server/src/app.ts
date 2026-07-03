@@ -56,6 +56,34 @@ export async function setupStaticServing(app: Express): Promise<void> {
   const staticDir = path.resolve(__dirname, "../../sanovim/dist/public");
   if (fs.existsSync(staticDir)) {
     app.use(express.static(staticDir));
+
+    // SEO: injeta title + meta tags + JSON-LD por quiz na página pública.
+    // Precede o catch-all para que crawlers e prévias de link recebam o HTML certo.
+    const { buildQuizHead } = await import("./lib/salesSeo");
+    const indexPath = path.join(staticDir, "index.html");
+    app.get("/q/:slug", async (req: Request, res: Response, next) => {
+      let html: string;
+      try {
+        html = fs.readFileSync(indexPath, "utf-8");
+      } catch {
+        next();
+        return;
+      }
+      try {
+        const origin = `${req.protocol}://${req.get("host")}`;
+        const seo = await buildQuizHead(String(req.params.slug), origin);
+        if (seo) {
+          // Substituições via função para não interpretar "$" como padrão de replace
+          html = html.replace(/<html\b[^>]*>/i, () => '<html lang="pt-BR">');
+          html = html.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${seo.title}</title>`);
+          html = html.replace("</head>", () => `${seo.head}\n</head>`);
+        }
+      } catch {
+        // em caso de erro, serve o HTML padrão
+      }
+      res.type("html").send(html);
+    });
+
     app.get("*", (_req: Request, res: Response) => {
       res.sendFile(path.join(staticDir, "index.html"));
     });

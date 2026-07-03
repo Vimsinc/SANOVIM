@@ -1,0 +1,757 @@
+<title>Playbook de Vendas · Ortopedia & Medicina Esportiva</title>
+<style>
+  :root {
+    --bg: #F7F9F9;
+    --surface: #FFFFFF;
+    --surface-2: #EEF3F2;
+    --ink: #10201F;
+    --ink-soft: #3A4B4A;
+    --muted: #5E706E;
+    --line: #DBE4E2;
+    --accent: #0E7C7B;      /* petróleo clínico */
+    --accent-deep: #0A4F52;
+    --accent-soft: #E1F0EE;
+    --energy: #E8743B;      /* laranja ação */
+    --energy-soft: #FBE7DB;
+    --gold: #B8863B;
+    --good: #2E8B6F;
+    --warn: #C4622D;
+    --crit: #B23A48;
+    --shadow: 0 1px 2px rgba(16,32,31,.04), 0 8px 24px -12px rgba(16,32,31,.14);
+    --shadow-lg: 0 2px 4px rgba(16,32,31,.05), 0 24px 48px -20px rgba(16,32,31,.22);
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --maxw: 1120px;
+    --readw: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1615;
+      --surface: #10201F;
+      --surface-2: #16302E;
+      --ink: #EAF2F0;
+      --ink-soft: #C3D2CF;
+      --muted: #8FA5A2;
+      --line: #24403D;
+      --accent: #37B0A8;
+      --accent-deep: #6FD3CB;
+      --accent-soft: #12312F;
+      --energy: #F08A57;
+      --energy-soft: #33241C;
+      --gold: #D3A85E;
+      --good: #52BE9B;
+      --warn: #E08A54;
+      --crit: #E0707E;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+      --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 28px 56px -22px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F9F9; --surface: #FFFFFF; --surface-2: #EEF3F2; --ink: #10201F;
+    --ink-soft: #3A4B4A; --muted: #5E706E; --line: #DBE4E2; --accent: #0E7C7B;
+    --accent-deep: #0A4F52; --accent-soft: #E1F0EE; --energy: #E8743B;
+    --energy-soft: #FBE7DB; --gold: #B8863B; --good: #2E8B6F; --warn: #C4622D; --crit: #B23A48;
+    --shadow: 0 1px 2px rgba(16,32,31,.04), 0 8px 24px -12px rgba(16,32,31,.14);
+    --shadow-lg: 0 2px 4px rgba(16,32,31,.05), 0 24px 48px -20px rgba(16,32,31,.22);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1615; --surface: #10201F; --surface-2: #16302E; --ink: #EAF2F0;
+    --ink-soft: #C3D2CF; --muted: #8FA5A2; --line: #24403D; --accent: #37B0A8;
+    --accent-deep: #6FD3CB; --accent-soft: #12312F; --energy: #F08A57;
+    --energy-soft: #33241C; --gold: #D3A85E; --good: #52BE9B; --warn: #E08A54; --crit: #E0707E;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 28px 56px -22px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.65;
+    font-size: 17px; -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px; }
+  .read { max-width: var(--readw); }
+
+  h1,h2,h3,h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15; text-wrap: balance; color: var(--ink); }
+  h2 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); margin: 0 0 .3em; letter-spacing: -.01em; }
+  h3 { font-size: clamp(1.2rem, 2.2vw, 1.45rem); margin: 1.8em 0 .5em; }
+  h4 { font-size: 1.06rem; margin: 1.4em 0 .3em; font-family: var(--sans); font-weight: 700; }
+  p { margin: 0 0 1em; color: var(--ink-soft); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: var(--ink); font-weight: 650; }
+  .eyebrow {
+    font-family: var(--sans); font-size: .74rem; font-weight: 700;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 .8em; display: flex; align-items: center; gap: .6em;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); display: inline-block; }
+
+  /* ===== NAV ===== */
+  header.top {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 12px 22px; max-width: var(--maxw); margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: .6rem; font-family: var(--serif); font-weight: 600; font-size: 1.05rem; letter-spacing: .01em; }
+  .brand .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--energy); box-shadow: 0 0 0 4px var(--energy-soft); }
+  .navlinks { display: flex; gap: .2rem; font-size: .82rem; font-weight: 600; flex-wrap: wrap; }
+  .navlinks a { color: var(--muted); padding: .3rem .55rem; border-radius: 7px; }
+  .navlinks a:hover { color: var(--ink); background: var(--surface-2); text-decoration: none; }
+  .theme-btn { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 1rem; display: grid; place-items: center; }
+  @media (max-width: 860px) { .navlinks { display: none; } }
+
+  /* ===== HERO ===== */
+  .hero { padding: clamp(3rem, 8vw, 6rem) 0 clamp(2rem,5vw,3.5rem); position: relative; overflow: hidden; }
+  .hero-grid { display: grid; gap: 2.4rem; }
+  .kicker-tag { display: inline-flex; align-items: center; gap: .5rem; background: var(--accent-soft); color: var(--accent-deep); font-size: .75rem; font-weight: 700; letter-spacing: .04em; padding: .35rem .8rem; border-radius: 99px; text-transform: uppercase; }
+  .hero h1 { font-size: clamp(2.3rem, 6vw, 4rem); letter-spacing: -.02em; margin: 1.1rem 0 0; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero .lede { font-size: clamp(1.05rem, 2.2vw, 1.28rem); color: var(--ink-soft); max-width: 40ch; margin-top: 1.2rem; }
+  .hero-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-top: 2.4rem; }
+  .stat { background: var(--surface); padding: 1.2rem 1.3rem; }
+  .stat .n { font-family: var(--serif); font-size: 1.9rem; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .l { font-size: .8rem; color: var(--muted); margin-top: .45rem; font-weight: 600; }
+
+  /* ===== SECTIONS ===== */
+  section.band { padding: clamp(2.8rem, 6vw, 4.4rem) 0; border-top: 1px solid var(--line); scroll-margin-top: 70px; }
+  section.band.alt { background: var(--surface); }
+  .sec-head { margin-bottom: 2rem; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1.5rem 1.6rem; box-shadow: var(--shadow); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.1rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.1rem; }
+
+  ul.clean { margin: 0 0 1em; padding-left: 1.15em; }
+  ul.clean li { margin-bottom: .5em; color: var(--ink-soft); }
+  ul.clean li::marker { color: var(--accent); }
+
+  /* funnel */
+  .funnel { display: flex; flex-direction: column; gap: 10px; margin-top: 1.5rem; }
+  .fstage { display: grid; grid-template-columns: 44px 1fr; gap: 1rem; align-items: stretch; }
+  .fstage .num { font-family: var(--serif); font-size: 1.3rem; color: #fff; background: var(--accent); border-radius: 12px; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+  .fstage:nth-child(1) .num { background: var(--accent-deep); }
+  .fstage:nth-child(2) .num { background: var(--accent); }
+  .fstage:nth-child(3) .num { background: #12938C; }
+  .fstage:nth-child(4) .num { background: var(--gold); }
+  .fstage:nth-child(5) .num { background: var(--energy); }
+  .fstage .body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .85rem 1.1rem; box-shadow: var(--shadow); }
+  .fstage .body b { display: block; font-family: var(--sans); font-size: 1rem; }
+  .fstage .body span { font-size: .9rem; color: var(--muted); }
+
+  /* pill labels */
+  .pill { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: .22rem .6rem; border-radius: 99px; }
+  .pill.teal { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill.energy { background: var(--energy-soft); color: var(--warn); }
+  .pill.gold { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+
+  /* SPIN / question banks */
+  .qbank { border-left: 3px solid var(--accent); padding-left: 1.1rem; margin: 1rem 0; }
+  .qbank p { margin: 0 0 .6em; }
+  .q { position: relative; padding-left: 1.4rem; color: var(--ink-soft); margin-bottom: .55rem; font-size: .97rem; }
+  .q::before { content: "“"; position: absolute; left: 0; top: -.1em; font-family: var(--serif); font-size: 1.3rem; color: var(--accent); line-height: 1; }
+  .q em { color: var(--ink); font-style: normal; font-weight: 600; }
+
+  .step-badge { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: #fff; font-size: .82rem; font-weight: 700; font-family: var(--sans); margin-right: .5rem; }
+
+  /* value ladder */
+  .ladder { display: grid; gap: 8px; margin-top: 1.4rem; }
+  .rung { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1.2rem; background: var(--surface); }
+  .rung .price { font-family: var(--serif); font-variant-numeric: tabular-nums; font-size: 1.2rem; color: var(--accent-deep); white-space: nowrap; }
+  .rung.r1 { margin-right: 40%; } .rung.r2 { margin-right: 26%; } .rung.r3 { margin-right: 13%; } .rung.r4 { margin-right: 0; border-color: var(--energy); background: linear-gradient(90deg, var(--energy-soft), var(--surface)); }
+  @media (max-width: 680px){ .rung.r1,.rung.r2,.rung.r3 { margin-right: 0; } }
+
+  /* callout */
+  .callout { border-radius: 14px; padding: 1.2rem 1.4rem; margin: 1.6rem 0; border: 1px solid; }
+  .callout.compliance { background: color-mix(in srgb, var(--crit) 7%, var(--surface)); border-color: color-mix(in srgb, var(--crit) 35%, var(--line)); }
+  .callout.tip { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+  .callout h4 { margin-top: 0; display: flex; align-items: center; gap: .5rem; }
+  .callout.compliance h4 { color: var(--crit); }
+
+  /* table */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; margin: 1.2rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; min-width: 560px; }
+  th, td { text-align: left; padding: .75rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--surface-2); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-family: var(--mono); font-size: .85em; background: var(--surface-2); padding: .1rem .4rem; border-radius: 5px; color: var(--accent-deep); }
+
+  /* timeline 90d */
+  .phase { display: grid; grid-template-columns: auto 1fr; gap: 1.2rem; }
+  .phase + .phase { margin-top: 1rem; }
+  .phase .rail { display: flex; flex-direction: column; align-items: center; }
+  .phase .rail .mark { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid var(--accent-soft); }
+  .phase .rail .line { width: 2px; flex: 1; background: var(--line); margin-top: 4px; }
+  .phase .when { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--energy); }
+
+  footer { padding: 3rem 0 4rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+    section.band { animation: rise .6s ease both; animation-timeline: view(); animation-range: entry 0% entry 30%; }
+    @keyframes rise { from { opacity: .3; transform: translateY(14px);} to {opacity:1; transform:none;} }
+  }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand"><span class="dot"></span> SANOVIM · Playbook</div>
+    <nav class="navlinks">
+      <a href="#modelo">Modelo</a>
+      <a href="#paciente">Paciente</a>
+      <a href="#funil">Funil</a>
+      <a href="#neuro">Neuromarketing</a>
+      <a href="#spin">SPIN</a>
+      <a href="#nepq">NEPQ</a>
+      <a href="#oferta">Ofertas</a>
+      <a href="#ticket">Ticket</a>
+      <a href="#trafego">Tráfego</a>
+      <a href="#recorrencia">Recorrência</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="modulos-2-5.html" style="color:var(--energy);">Módulos 2–5 →</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">◐</button>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="kicker-tag">Piloto · Ortopedia & Medicina Esportiva</span>
+      <h1>Do <em>engajamento</em> à consulta:<br>um sistema para gerar leads que já chegam querendo ser atendidos.</h1>
+      <p class="lede">Um playbook de vendas e marketing desenhado para a clínica — captar, qualificar, encaminhar para o WhatsApp da recepção e reter com recorrência e indicação. Frameworks aplicados, não teoria.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="n">5</div><div class="l">etapas de funil, do quiz ao pós-venda</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">degraus de ticket (escada de valor)</div></div>
+        <div class="stat"><div class="n">40+</div><div class="l">perguntas SPIN & NEPQ prontas</div></div>
+        <div class="stat"><div class="n">90</div><div class="l">dias de roteiro de implementação</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MODELO ===== -->
+<section class="band alt" id="modelo">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">01 · A tese</p>
+      <h2>O que estamos construindo</h2>
+      <p>A plataforma não vende consulta de cara. Ela <strong>compra a atenção com valor</strong> (quiz, desafio, resposta a uma dor real), transforma essa atenção em conversa e só então encaminha para o número da clínica — o paciente chega aquecido, com o problema já nomeado. Depois da consulta, o mesmo sistema sustenta recorrência e indicação.</p>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <span class="pill teal">Objetivo primário</span>
+        <h4>Leads qualificados</h4>
+        <p>Não é volume de seguidor. É contato que respondeu perguntas, revelou uma dor e demonstrou intenção. Isso é o que vai para a recepção.</p>
+      </div>
+      <div class="card">
+        <span class="pill gold">Motor</span>
+        <h4>Engajamento como isca</h4>
+        <p>Quiz de risco, desafio de mobilidade, "qual a causa da sua dor no joelho?". Conteúdo que a pessoa <em>quer</em> completar — e que já diagnostica o lead para você.</p>
+      </div>
+      <div class="card">
+        <span class="pill energy">Retenção</span>
+        <h4>Recorrência + indicação</h4>
+        <p>Acompanhamento mensal, formulário semanal, desconto por indicação. O paciente atendido vira canal de aquisição e receita recorrente.</p>
+      </div>
+    </div>
+
+    <div class="callout tip read" style="margin-top:2rem;">
+      <h4>◈ Duas verticais, uma máquina</h4>
+      <p style="margin:0;">O piloto valida em <strong>ortopedia/medicina esportiva</strong> (sua área). A mesma engrenagem — isca → qualificação → encaminhamento → recorrência — replica para <strong>terapia capilar / tricologia</strong> (sua esposa) trocando só o conteúdo e as perguntas. Provar em uma vertical de alta confiança médica é a validação mais forte que existe.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PACIENTE ===== -->
+<section class="band" id="paciente">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">02 · Comportamento de compra</p>
+      <h2>Como o paciente de dor decide</h2>
+      <p>Ninguém acorda querendo "comprar uma consulta ortopédica". A pessoa quer <strong>voltar a correr sem dor</strong>, <strong>não depender de anti-inflamatório</strong>, <strong>não virar caso cirúrgico</strong>. A decisão é emocional (medo da limitação, do envelhecimento, da perda de performance) e racionalizada depois. O marketing fala com a emoção; a consulta entrega a razão.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h4>Os 4 estados do paciente</h4>
+        <ul class="clean">
+          <li><strong>Nega/adia</strong> — "é só um jeito, passa". Aqui você educa sobre implicação.</li>
+          <li><strong>Convive</strong> — já se acostumou com a dor crônica. Aqui você mostra o custo de conviver.</li>
+          <li><strong>Busca</strong> — está no Google agora. Aqui você precisa aparecer (Ads + Perfil).</li>
+          <li><strong>Comparando</strong> — já decidiu tratar, escolhe onde. Aqui vence conveniência + confiança + prova.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Gatilhos de decisão (neuromarketing)</h4>
+        <ul class="clean">
+          <li><strong>Dor &gt; prazer</strong> — o cérebro age 2–3× mais para evitar perda do que para ganhar.</li>
+          <li><strong>Prova social</strong> — "atletas e pacientes como você" reduz o risco percebido.</li>
+          <li><strong>Autoridade</strong> — especialização (medicina esportiva) é o maior redutor de fricção.</li>
+          <li><strong>Especificidade</strong> — "protocolo de 6 semanas para tendinopatia patelar" vende mais que "tratamento de joelho".</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FUNIL ===== -->
+<section class="band alt" id="funil">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">03 · O funil</p>
+      <h2>Da atenção ao WhatsApp da recepção</h2>
+      <p>Cada etapa tem <strong>um único trabalho</strong> e um único próximo passo. O erro clássico é pedir o agendamento cedo demais. Aqui, o pedido de contato só acontece depois que a pessoa já investiu atenção e revelou a dor.</p>
+    </div>
+    <div class="funnel">
+      <div class="fstage"><div class="num">1</div><div class="body"><b>Atração — conteúdo + tráfego</b><span>Instagram Ads, Google Ads, Perfil da Empresa, Reels educativos. Objetivo: clique para a isca.</span></div></div>
+      <div class="fstage"><div class="num">2</div><div class="body"><b>Engajamento — quiz / desafio / Q&amp;A</b><span>"Descubra a causa da sua dor no joelho em 6 perguntas". A pessoa se auto-diagnostica e você captura respostas + contato.</span></div></div>
+      <div class="fstage"><div class="num">3</div><div class="body"><b>Qualificação — score + resultado personalizado</b><span>O resultado do quiz nomeia o problema, a implicação e sugere avaliação. Lead recebe classificação (frio/morno/quente).</span></div></div>
+      <div class="fstage"><div class="num">4</div><div class="body"><b>Encaminhamento — WhatsApp da clínica</b><span>CTA com deep-link e mensagem pré-preenchida ("Vim pelo quiz, meu resultado foi X"). A recepção recebe o lead já contextualizado.</span></div></div>
+      <div class="fstage"><div class="num">5</div><div class="body"><b>Pós-venda — recorrência + indicação</b><span>Acompanhamento, formulário semanal, plano mensal, link de indicação com vantagem. O paciente vira base e canal.</span></div></div>
+    </div>
+    <div class="callout tip read">
+      <h4>◈ Por que o quiz é a arma central</h4>
+      <p style="margin:0;">Um quiz bem feito faz três coisas ao mesmo tempo: <strong>engaja</strong> (a pessoa quer o resultado), <strong>qualifica</strong> (cada resposta é um dado de SPIN — situação, problema, implicação) e <strong>ancora</strong> a necessidade da consulta. É o SPIN Selling automatizado antes mesmo do humano entrar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NEUROMARKETING ===== -->
+<section class="band" id="neuro">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">04 · Neuromarketing aplicado</p>
+      <h2>Os gatilhos, etapa por etapa</h2>
+      <p>Não use gatilho por decoração. Cada um resolve um atrito específico do funil.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Princípio</th><th>Onde usar</th><th>Exemplo concreto</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Aversão à perda</strong></td><td>Anúncio + resultado do quiz</td><td>"Cada mês convivendo com a tendinopatia encurta seu tempo de recuperação e aumenta o risco de lesão." </td></tr>
+          <tr><td><strong>Prova social</strong></td><td>Criativo + página</td><td>Depoimentos de pacientes/atletas reais (com consentimento), número de atendimentos, antes/depois funcional (sem sensacionalismo).</td></tr>
+          <tr><td><strong>Autoridade</strong></td><td>Todo o funil</td><td>Título de especialista, formação, "referência em medicina esportiva na região". Confiança é o principal produto do médico.</td></tr>
+          <tr><td><strong>Reciprocidade</strong></td><td>Isca</td><td>Entregar valor real de graça primeiro: guia de alongamento, resultado do quiz, mini-consulta educativa em vídeo.</td></tr>
+          <tr><td><strong>Compromisso &amp; coerência</strong></td><td>Quiz</td><td>Quem responde 6 perguntas sobre a própria dor já se comprometeu mentalmente a cuidar dela.</td></tr>
+          <tr><td><strong>Escassez / urgência ética</strong></td><td>Fundo de funil</td><td>Agenda real limitada ("2 horários de avaliação esta semana"), nunca falsa. Escassez inventada destrói confiança médica.</td></tr>
+          <tr><td><strong>Efeito ancoragem</strong></td><td>Oferta</td><td>Apresentar primeiro o protocolo completo (maior valor) faz a consulta avulsa parecer acessível. Detalhado na seção 07.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout compliance read">
+      <h4>⚠ Guardrail CFM — leia antes de escalar</h4>
+      <p>Publicidade médica no Brasil é regulada (Res. CFM 2.336/2023 e Manual de Publicidade Médica). Isso <strong>protege sua reputação</strong> — anúncio irregular vira PAD (processo ético). Regras práticas para todo o funil:</p>
+      <ul class="clean" style="margin-bottom:0;">
+        <li><strong>Não</strong> prometa ou garanta resultado ("cura garantida", "fim da dor").</li>
+        <li><strong>Não</strong> use "antes e depois" sensacionalista nem imagens que exagerem o resultado.</li>
+        <li><strong>Não</strong> ofereça consulta como prêmio de sorteio/concurso, nem preço como chamariz sensacionalista.</li>
+        <li><strong>Sim</strong> a conteúdo educativo, depoimento com consentimento formal, e sempre com nome + CRM + RQE visíveis.</li>
+        <li>Ofertas "irresistíveis" (seção 06) devem apostar em <em>conveniência, acesso e experiência</em> — não em promessa de desfecho clínico.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SPIN ===== -->
+<section class="band alt" id="spin">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">05 · SPIN Selling</p>
+      <h2>Banco de perguntas — ortopedia &amp; medicina esportiva</h2>
+      <p>SPIN estrutura a conversa (na recepção, na anamnese comercial ou dentro do quiz) em quatro tipos de pergunta que levam o paciente a <em>concluir sozinho</em> que precisa da solução. Aqui já adaptado ao seu contexto.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h4><span class="step-badge">S</span>Situação</h4>
+        <p style="color:var(--muted);font-size:.9rem;">Mapear o cenário atual sem cansar. Poucas, objetivas.</p>
+        <div class="qbank">
+          <div class="q">Há quanto tempo você sente essa dor no <em>joelho / ombro / coluna</em>?</div>
+          <div class="q">Que atividade ela atrapalha — <em>correr, treinar, trabalhar, dormir</em>?</div>
+          <div class="q">Você já tratou antes? O que fez até agora?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4><span class="step-badge">P</span>Problema</h4>
+        <p style="color:var(--muted);font-size:.9rem;">Fazer a dor virar palavra. Nomear é o começo do tratamento.</p>
+        <div class="qbank">
+          <div class="q">A dor <em>volta sempre</em> que você tenta voltar a treinar?</div>
+          <div class="q">Você tem evitado atividades que gostava por medo de piorar?</div>
+          <div class="q">O anti-inflamatório resolve na hora mas o problema <em>retorna</em>?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4><span class="step-badge">I</span>Implicação</h4>
+        <p style="color:var(--muted);font-size:.9rem;">O motor do SPIN. Expor o custo de não agir (o "impacto negativo" que você citou).</p>
+        <div class="qbank">
+          <div class="q">Se continuar assim por mais 6 meses, o que <em>deixa de fazer</em>?</div>
+          <div class="q">Como isso afeta seu <em>sono, humor, performance</em> no trabalho e no esporte?</div>
+          <div class="q">Você sabia que dor crônica não tratada pode virar <em>compensação</em> e lesionar outra articulação?</div>
+          <div class="q">Quanto já gastou em soluções paliativas que não resolveram a causa?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4><span class="step-badge">N</span>Necessidade de solução</h4>
+        <p style="color:var(--muted);font-size:.9rem;">Fazer o paciente verbalizar o valor de resolver — ele se vende sozinho.</p>
+        <div class="qbank">
+          <div class="q">O que mudaria se você voltasse a treinar <em>sem dor</em> em algumas semanas?</div>
+          <div class="q">Faria diferença ter um <em>diagnóstico preciso da causa</em>, não só do sintoma?</div>
+          <div class="q">Se existisse um protocolo feito pra sua rotina, seria o momento de resolver isso <em>de vez</em>?</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout tip read">
+      <h4>◈ Ponte para o encaminhamento</h4>
+      <p style="margin:0;">Depois da pergunta de Necessidade, a transição é: <em>"Pelo que você descreveu, faz sentido uma avaliação para identificar a causa e montar o plano. Posso te passar para a nossa recepção agora para ver o melhor horário?"</em> — o paciente já concordou com a premissa; o "sim" ao agendamento é consequência.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NEPQ ===== -->
+<section class="band" id="nepq">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">06 · NEPQ &amp; Neuro-emotion</p>
+      <h2>Perguntas de persuasão neuro-emocional</h2>
+      <p>NEPQ (Neuro-Emotional Persuasion Questioning, de Jeremy Miner) parte de uma ideia: as pessoas compram pela emoção e defendem pela lógica. Em vez de "empurrar", você usa <strong>tom neutro e curioso</strong> para que o paciente exponha a própria emoção. Perfeito para saúde, onde pressão gera desconfiança. A sequência:</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h4>1 · Conexão (Connecting)</h4>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem;">Baixar a guarda. Curiosidade genuína, zero venda.</p>
+        <div class="qbank">
+          <div class="q">O que te fez procurar sobre isso <em>justo agora</em>?</div>
+          <div class="q">Só pra eu entender melhor o seu caso… me conta o que está acontecendo?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4>2 · Situação &amp; Consciência do problema</h4>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem;">Levar a pessoa a enxergar o gap entre onde está e onde quer estar.</p>
+        <div class="qbank">
+          <div class="q">Como <em>seria o ideal</em> pra você — o que gostaria de estar fazendo sem essa dor?</div>
+          <div class="q">E hoje, o quão longe você está disso?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4>3 · Consequência (a chave emocional)</h4>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem;">Onde o "neuro-emotion" acontece: a pessoa sente o custo de não mudar.</p>
+        <div class="qbank">
+          <div class="q">Se nada mudar, como você <em>imagina isso daqui a um ano</em>?</div>
+          <div class="q">O que já <em>deixou de viver</em> por causa disso? Como se sente com isso?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4>4 · Compromisso &amp; Transição</h4>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem;">O paciente pede a solução. Você apenas confirma.</p>
+        <div class="qbank">
+          <div class="q">Você gostaria de entender <em>o que está causando</em> isso e como resolver?</div>
+          <div class="q">Se a gente encontrar um caminho que caiba na sua rotina, <em>faz sentido começar</em>?</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:1.6rem;">
+      <div class="card" style="border-color:color-mix(in srgb,var(--energy) 30%,var(--line));">
+        <span class="pill energy">Tom neuro-emocional</span>
+        <h4>Como falar, não só o que perguntar</h4>
+        <ul class="clean">
+          <li><strong>Tonalidade curiosa e calma</strong> — sobe levemente no fim da frase; nunca soa como vendedor.</li>
+          <li><strong>Silêncio proposital</strong> — depois da pergunta de consequência, cale. O paciente preenche com emoção.</li>
+          <li><strong>Espelhamento</strong> — repita a última expressão dele ("voltar a jogar bola…?") para aprofundar.</li>
+          <li><strong>Rótulo de emoção</strong> — "parece que isso te frustra bastante" valida e abre o paciente.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="pill teal">A oferta é conexão</span>
+        <h4>Por que isso vende mais que desconto</h4>
+        <p style="margin-bottom:0;">Você escreveu: <em>"a oferta tem relação com conexão"</em>. Exato. Um paciente que se sentiu ouvido e entendeu a própria implicação não pechincha — ele quer o resultado. O preço vira detalhe. NEPQ + SPIN existem para criar essa conexão <strong>antes</strong> de qualquer número aparecer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== OFERTAS ===== -->
+<section class="band alt" id="oferta">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">07 · Ofertas irresistíveis</p>
+      <h2>Construindo a oferta que faz o não parecer burro</h2>
+      <p>Uma oferta irresistível maximiza o <strong>resultado desejado e a conveniência</strong> e minimiza o <strong>esforço, o tempo e o risco</strong> do paciente. Note: o resultado que vendemos é <em>experiência e acesso</em>, não promessa de cura (guardrail CFM).</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h4>A equação de valor</h4>
+        <div class="tbl-wrap" style="margin-top:.6rem;">
+          <table style="min-width:auto;">
+            <tbody>
+              <tr><td>↑ <strong>Resultado dos sonhos</strong></td><td>"Voltar a correr / treinar / carregar o filho no colo."</td></tr>
+              <tr><td>↑ <strong>Confiança na entrega</strong></td><td>Autoridade, prova social, protocolo claro, especialização.</td></tr>
+              <tr><td>↓ <strong>Tempo até o valor</strong></td><td>Avaliação rápida, retorno ágil de exame, plano já na 1ª consulta.</td></tr>
+              <tr><td>↓ <strong>Esforço &amp; sacrifício</strong></td><td>Agendamento fácil, teleorientação, estacionamento, horário flexível.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Os 4 pilares que você citou</h4>
+        <ul class="clean">
+          <li><strong>Conveniência</strong> — WhatsApp direto, agenda online, lembrete automático, retorno incluído.</li>
+          <li><strong>Conforto</strong> — recepção acolhedora, tempo de consulta real, sem sensação de "esteira".</li>
+          <li><strong>Acessibilidade</strong> — condições de pagamento, parcelamento, reembolso facilitado (seção 09).</li>
+          <li><strong>Melhor resultado</strong> — protocolo estruturado + acompanhamento, não consulta solta.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip read">
+      <h4>◈ Empilhamento de valor (value stack)</h4>
+      <p style="margin:0;">Em vez de "consulta = R$ X", apresente um <strong>pacote</strong>: avaliação + análise de exames + plano personalizado + 1 retorno + canal de dúvidas por 30 dias + guia digital. O preço fica igual, mas o valor <em>percebido</em> multiplica. É a base para a ancoragem da próxima seção.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TICKET / FTP / ANCORAGEM ===== -->
+<section class="band" id="ticket">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">08 · Ticket médio, ancoragem &amp; FTP</p>
+      <h2>Exponencializar o ticket sem espantar o paciente</h2>
+      <p>Aqui entram <strong>ancoragem</strong>, a <strong>escada de valor</strong> e o que você chamou de <strong>FTP</strong> — a estrutura de monetização do funil: <em>Front-end (isca) → Tripwire (oferta de entrada) → Profit-maximizer (oferta principal + recorrência)</em>. Cada degrau financia a aquisição do próximo.</p>
+    </div>
+
+    <h3>A escada de valor</h3>
+    <div class="ladder">
+      <div class="rung r1"><div><span class="pill teal">Front-end</span><br><strong>Isca gratuita</strong> — quiz, guia, aula. Custo zero para o lead, dado valioso para você.</div><div class="price">R$ 0</div></div>
+      <div class="rung r2"><div><span class="pill teal">Tripwire</span><br><strong>Avaliação / primeira consulta</strong> — o "sim" fácil que inicia o relacionamento.</div><div class="price">R$ · baixo</div></div>
+      <div class="rung r3"><div><span class="pill gold">Core</span><br><strong>Protocolo de tratamento</strong> — pacote estruturado com acompanhamento (o ticket real).</div><div class="price">R$ · alto</div></div>
+      <div class="rung r4"><div><span class="pill energy">Profit-maximizer</span><br><strong>Plano de acompanhamento contínuo</strong> — recorrência mensal, performance, prevenção.</div><div class="price">R$ · recorrente</div></div>
+    </div>
+
+    <div class="grid2" style="margin-top:2rem;">
+      <div class="card">
+        <h4>Ancoragem na prática</h4>
+        <p>Apresente <strong>sempre do maior para o menor</strong>. Ao mostrar primeiro o "Programa Completo Performance" (o topo), a consulta ou o protocolo médio parecem naturais e acessíveis. O primeiro número que o cérebro vê vira a régua de todos os outros.</p>
+        <ul class="clean">
+          <li>Anúncio do plano premium <em>antes</em> do preço da avaliação.</li>
+          <li>Três opções (bom / melhor / ideal) — a maioria escolhe o do meio, que é o seu alvo.</li>
+          <li>Mostrar o "custo de conviver com a dor" como âncora contra o custo do tratamento.</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:color-mix(in srgb,var(--energy) 30%,var(--line));">
+        <span class="pill energy">Tiro de misericórdia</span>
+        <h4>O fechamento que você citou</h4>
+        <p>Depois que o paciente já quer, mas hesita, ofereça <strong>um</strong> empurrão final — nunca vários (parece desespero):</p>
+        <ul class="clean">
+          <li><strong>Condição de pagamento</strong> — parcelar em mais vezes sem juros.</li>
+          <li><strong>Bônus de serviço</strong> — incluir um retorno extra ou reavaliação.</li>
+          <li><strong>Janela real</strong> — "consigo encaixar ainda esta semana".</li>
+        </ul>
+        <p style="margin-bottom:0;font-size:.9rem;color:var(--muted);">Um só, no momento certo. É a diferença entre fechar e queimar a relação.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TRÁFEGO ===== -->
+<section class="band alt" id="trafego">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">09 · Aquisição paga &amp; Google</p>
+      <h2>Google Ads, Perfil da Empresa e Instagram</h2>
+      <p>Duas intenções diferentes, dois canais. <strong>Google = demanda existente</strong> (quem já procura tratamento). <strong>Instagram = demanda latente</strong> (quem ainda nem decidiu tratar). Você precisa dos dois.</p>
+    </div>
+
+    <h3>Google Ads — captura de intenção</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Alavanca</th><th>Aplicação em ortopedia / medicina esportiva</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Campanhas de Busca</strong></td><td>Termos de intenção: <code>ortopedista medicina esportiva [cidade]</code>, <code>dor no joelho ao correr especialista</code>, <code>tratamento tendinite ombro [bairro]</code>. Fundo de funil.</td></tr>
+          <tr><td><strong>Palavras negativas</strong></td><td>Bloqueie <code>SUS</code>, <code>grátis</code>, <code>concurso</code>, <code>salário</code>, <code>exercícios caseiros</code> — filtram quem não vai converter e economizam verba.</td></tr>
+          <tr><td><strong>Correspondência</strong></td><td>Comece em <em>frase</em> e <em>exata</em>, não ampla. Ampla só depois, com negativas maduras.</td></tr>
+          <tr><td><strong>Extensões</strong></td><td>Local, chamada (clique-para-ligar no mobile), sitelinks (especialidades), frase de destaque ("Retorno incluído", "Agende no WhatsApp").</td></tr>
+          <tr><td><strong>Landing dedicada</strong></td><td>Nunca mande para a home. Página por dor (joelho, ombro, coluna) com prova, especialização e CTA de WhatsApp. Ganha Índice de Qualidade → paga menos por clique.</td></tr>
+          <tr><td><strong>Geolocalização</strong></td><td>Raio realista da clínica (ex.: 8–15 km) + ajuste de lance por bairro de maior conversão.</td></tr>
+          <tr><td><strong>Rastreamento</strong></td><td>Conversão = clique no WhatsApp / ligação. Sem medir isso, você otimiza no escuro.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout tip read">
+      <h4>◈ Google Perfil da Empresa (o ativo gratuito nº 1)</h4>
+      <p style="margin:0;">Antes de gastar em Ads, domine o <strong>Perfil da Empresa</strong> (Google Business): categoria correta ("Médico ortopedista"), fotos reais, horário, link de WhatsApp, e principalmente <strong>avaliações</strong> — peça a todo paciente satisfeito. Ranqueia no mapa, aparece em "ortopedista perto de mim" e converte de graça. É o melhor ROI que existe para clínica.</p>
+    </div>
+
+    <h3>Instagram Ads — criar demanda</h3>
+    <div class="grid3">
+      <div class="card">
+        <h4>Públicos</h4>
+        <ul class="clean">
+          <li>Interesses: corrida, crossfit, musculação, tênis, ciclismo + faixa etária/raio local.</li>
+          <li><strong>Retargeting</strong>: quem viu vídeo, visitou landing, começou o quiz e não terminou.</li>
+          <li><strong>Lookalike</strong> dos leads que viraram paciente.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Criativos</h4>
+        <ul class="clean">
+          <li>Reels educativo primeiro (autoridade), oferta depois (retargeting).</li>
+          <li>Gancho nos 2 primeiros segundos: "Dor no joelho ao correr não é normal — e nem sempre é menisco."</li>
+          <li>CTA para o quiz/isca, não direto para "agende".</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Objetivo &amp; oferta</h4>
+        <ul class="clean">
+          <li>Topo: objetivo <em>engajamento/tráfego</em> para a isca.</li>
+          <li>Fundo: objetivo <em>conversão</em> (clique no WhatsApp) para quem já engajou.</li>
+          <li>Teste 3–4 ganchos por semana; escale o vencedor.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="read" style="margin-top:1.2rem;color:var(--muted);font-size:.92rem;">Todo criativo de saúde deve seguir o guardrail CFM da seção 04: educar e informar, sem prometer desfecho, com identificação profissional.</p>
+  </div>
+</section>
+
+<!-- ===== RECORRÊNCIA + BASE ===== -->
+<section class="band" id="recorrencia">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">10 · Recorrência, base &amp; indicação</p>
+      <h2>Transformar paciente em receita contínua e canal</h2>
+      <p>Adquirir é caro; reter e reativar é barato. Aqui estão os motores de "recorrência infinita", ascensão da base e networking que você listou.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <span class="pill energy">Recorrência infinita</span>
+        <h4>Fazer o paciente voltar todo mês</h4>
+        <ul class="clean">
+          <li><strong>Plano de acompanhamento mensal</strong> — reavaliação + ajuste de protocolo + prevenção. Assinatura, não avulso.</li>
+          <li><strong>Formulário semanal</strong> — check-in de dor/evolução por WhatsApp/link. Baixo esforço, alta presença, gera dados e mantém o vínculo vivo.</li>
+          <li><strong>Gatilho de retorno agendado</strong> — todo paciente sai com o próximo passo marcado, nunca "volte quando precisar".</li>
+          <li><strong>Sazonalidade esportiva</strong> — avaliação pré-temporada, pós-prova, prevenção de lesão. Motivos recorrentes para voltar.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="pill teal">Programa de indicação</span>
+        <h4>O paciente vira aquisição</h4>
+        <ul class="clean">
+          <li>Link/código pessoal de indicação — mensurável.</li>
+          <li><strong>Vantagem para os dois lados</strong>: quem indica ganha (reavaliação, sessão extra, brinde de serviço); quem chega ganha condição de acesso.</li>
+          <li>Peça a indicação no <strong>pico de satisfação</strong> — logo após um bom resultado ou retorno.</li>
+          <li>Cuidado CFM: recompensa por indicação deve ser em <em>serviço/experiência</em> e sem mercantilizar o ato médico de forma vedada — validar formato com assessoria.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid3" style="margin-top:1.6rem;">
+      <div class="card"><h4>Ascensão da base</h4><p style="margin:0;font-size:.94rem;">Comunicação ativa com pacientes antigos: newsletter simples, novidades de tratamento, convite para reavaliação. Quem já confiou uma vez compra de novo mais fácil.</p></div>
+      <div class="card"><h4>Reativação (reaver)</h4><p style="margin:0;font-size:.94rem;">Campanha para inativos há 6–12 meses: "Como está seu joelho? Vamos reavaliar." Reconquista custa uma fração de um lead novo.</p></div>
+      <div class="card"><h4>Networking</h4><p style="margin:0;font-size:.94rem;">Parcerias com academias, assessorias de corrida, personal trainers, fisioterapeutas, clubes. Fonte constante de leads pré-qualificados por indicação profissional.</p></div>
+    </div>
+
+    <div class="callout tip read">
+      <h4>◈ Reembolso facilitado</h4>
+      <p style="margin:0;">Muitos pacientes têm plano com reembolso e não usam por burocracia. <strong>Facilitar isso é uma oferta irresistível de acesso</strong>: recibo padronizado, orientação de como solicitar, nota com os códigos certos. Reduz a barreira de preço sem baixar seu ticket — e é 100% ético.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ROADMAP ===== -->
+<section class="band alt" id="roadmap">
+  <div class="wrap">
+    <div class="sec-head read">
+      <p class="eyebrow">11 · Execução</p>
+      <h2>Roteiro de 90 dias</h2>
+      <p>Validar barato antes de construir caro. O piloto testa a hipótese central — <em>quiz gera lead qualificado que agenda</em> — com o mínimo de tecnologia.</p>
+    </div>
+
+    <div>
+      <div class="phase">
+        <div class="rail"><span class="mark"></span><span class="line"></span></div>
+        <div>
+          <span class="when">Dias 1–30 · Fundação</span>
+          <h4 style="margin-top:.2rem;">Provar a isca</h4>
+          <ul class="clean">
+            <li>Otimizar Google Perfil da Empresa + começar a coletar avaliações.</li>
+            <li>1 quiz ("Descubra a causa da sua dor no joelho") — pode começar até em ferramenta simples/landing.</li>
+            <li>Encaminhamento por WhatsApp com mensagem pré-preenchida + rastreamento de origem.</li>
+            <li>Script SPIN/NEPQ para a recepção. Meta: medir taxa quiz→agendamento.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="rail"><span class="mark"></span><span class="line"></span></div>
+        <div>
+          <span class="when">Dias 31–60 · Tração</span>
+          <h4 style="margin-top:.2rem;">Ligar o tráfego</h4>
+          <ul class="clean">
+            <li>Google Ads de busca (2–3 campanhas por dor) + landing por dor.</li>
+            <li>Instagram: Reels educativos + campanha de retargeting para quem começou o quiz.</li>
+            <li>Escada de valor definida (avaliação → protocolo → acompanhamento) com ancoragem.</li>
+            <li>Segundo quiz/vertical (ombro ou coluna). Começar terapia capilar em paralelo se o piloto validar.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="rail"><span class="mark"></span></div>
+        <div>
+          <span class="when">Dias 61–90 · Recorrência</span>
+          <h4 style="margin-top:.2rem;">Fechar o ciclo</h4>
+          <ul class="clean">
+            <li>Plano de acompanhamento mensal + formulário semanal ativos.</li>
+            <li>Programa de indicação com link mensurável.</li>
+            <li>Campanha de reativação da base antiga.</li>
+            <li>Dashboard de métricas → decidir o que vale automatizar na plataforma SANOVIM.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h3>Métricas que importam (não vaidade)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Métrica</th><th>O que revela</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Taxa quiz → contato</strong></td><td>Qualidade da isca e do CTA.</td></tr>
+          <tr><td><strong>Taxa contato → agendamento</strong></td><td>Eficácia do SPIN/NEPQ da recepção.</td></tr>
+          <tr><td><strong>Taxa agendamento → comparecimento</strong></td><td>Confirmação e valor percebido.</td></tr>
+          <tr><td><strong>CAC</strong> (custo por paciente adquirido)</td><td>Sustentabilidade do tráfego pago.</td></tr>
+          <tr><td><strong>LTV</strong> (valor no tempo de vida)</td><td>O verdadeiro jogo — recorrência + indicação fazem o LTV explodir.</td></tr>
+          <tr><td><strong>Taxa de indicação</strong></td><td>Saúde da experiência do paciente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap read">
+    <p style="color:var(--ink);font-family:var(--serif);font-size:1.15rem;margin-bottom:.4rem;">Um princípio para guiar tudo</p>
+    <p style="margin-bottom:1.2rem;">Você não está vendendo consulta — está removendo o medo de continuar com dor e devolvendo a vida em movimento. Todo framework aqui (SPIN, NEPQ, ancoragem, ofertas) serve a isso: criar <strong>conexão</strong> antes de pedir qualquer coisa. É o que separa marketing de saúde que respeita o paciente de propaganda que o assusta.</p>
+    <p style="font-size:.82rem;color:var(--muted);margin:0;">SANOVIM · Playbook de Vendas & Marketing — piloto Ortopedia & Medicina Esportiva. Conteúdo estratégico; valide toda ação publicitária com assessoria jurídica/CFM antes de veicular.</p>
+  </div>
+</footer>
+</main>
+
+<script>
+  (function(){
+    var root = document.documentElement;
+    var btn = document.getElementById('themeBtn');
+    function apply(t){ root.setAttribute('data-theme', t); try{ localStorage.setItem('sv-theme', t); }catch(e){} }
+    var saved; try{ saved = localStorage.getItem('sv-theme'); }catch(e){}
+    if(saved){ apply(saved); }
+    btn.addEventListener('click', function(){
+      var cur = root.getAttribute('data-theme');
+      if(!cur){ cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+      apply(cur === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>

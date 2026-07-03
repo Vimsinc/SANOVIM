@@ -10,12 +10,22 @@ import {
   History,
   LogOut,
   ShieldCheck,
+  Users,
+  Filter,
+  CalendarClock,
+  Gift,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/leads", icon: Users, label: "Leads" },
+  { href: "/retornos", icon: CalendarClock, label: "Retornos" },
+  { href: "/indicacoes", icon: Gift, label: "Indicações" },
+  { href: "/kpis", icon: BarChart3, label: "KPIs" },
+  { href: "/funil", icon: Filter, label: "Funil" },
   { href: "/generator", icon: Sparkles, label: "Gerar" },
   { href: "/images", icon: Image, label: "Imagens" },
   { href: "/video", icon: Video, label: "Vídeo" },
