@@ -383,6 +383,17 @@ router.get("/quizzes", async (req: Request, res: Response): Promise<void> => {
   res.json(rows.map((q) => ({ ...q, leadCount: countMap.get(q.id) ?? 0 })));
 });
 
+router.get("/quizzes/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = Number(req.params.id);
+  const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, id)).limit(1);
+  if (!quiz) {
+    res.status(404).json({ error: "Quiz não encontrado" });
+    return;
+  }
+  res.json(quiz);
+});
+
 router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   const { slug, title, specialty, segment, description, whatsappNumber, questions, resultBands } =

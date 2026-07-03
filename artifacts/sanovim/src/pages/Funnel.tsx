@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { TopBar } from "@/components/TopBar";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -10,6 +11,8 @@ import {
   Users,
   Power,
   MessageCircle,
+  Plus,
+  Pencil,
 } from "lucide-react";
 
 interface Quiz {
@@ -100,7 +103,17 @@ export default function Funnel() {
 
   return (
     <>
-      <TopBar title="Funil" subtitle="Quizzes de engajamento e captação de leads" />
+      <TopBar
+        title="Funil"
+        subtitle="Quizzes de engajamento e captação de leads"
+        actions={
+          <Link href="/quiz-editor">
+            <a className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90">
+              <Plus className="w-4 h-4" /> Novo quiz
+            </a>
+          </Link>
+        }
+      />
       <div className="p-4 md:p-6 space-y-6">
         {/* Seed / criação rápida */}
         <div className="bg-card border border-border rounded-xl p-5">
@@ -215,6 +228,14 @@ export default function Funnel() {
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
+                  <Link href={`/quiz-editor/${quiz.id}`}>
+                    <a
+                      className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                      title="Editar quiz"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </a>
+                  </Link>
                 </div>
               </div>
             ))}

@@ -13,6 +13,7 @@ import HistoryPage from "@/pages/HistoryPage";
 import Admin from "@/pages/Admin";
 import Leads from "@/pages/Leads";
 import Funnel from "@/pages/Funnel";
+import QuizEditor from "@/pages/QuizEditor";
 import Followups from "@/pages/Followups";
 import Referrals from "@/pages/Referrals";
 import PublicQuiz from "@/pages/PublicQuiz";
@@ -69,6 +70,8 @@ function AppLayout() {
           <Route path="/leads" component={Leads} />
           <Route path="/retornos" component={Followups} />
           <Route path="/funil" component={Funnel} />
+          <Route path="/quiz-editor/:id" component={QuizEditor} />
+          <Route path="/quiz-editor" component={QuizEditor} />
           <Route path="/indicacoes" component={Referrals} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
