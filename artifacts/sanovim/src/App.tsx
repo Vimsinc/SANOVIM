@@ -11,6 +11,9 @@ import Experience from "@/pages/Experience";
 import Trending from "@/pages/Trending";
 import HistoryPage from "@/pages/HistoryPage";
 import Admin from "@/pages/Admin";
+import Leads from "@/pages/Leads";
+import Funnel from "@/pages/Funnel";
+import PublicQuiz from "@/pages/PublicQuiz";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@workspace/replit-auth-web";
 
@@ -61,6 +64,8 @@ function AppLayout() {
           <Route path="/experience" component={Experience} />
           <Route path="/trending" component={Trending} />
           <Route path="/history" component={HistoryPage} />
+          <Route path="/leads" component={Leads} />
+          <Route path="/funil" component={Funnel} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
         </Switch>
@@ -87,7 +92,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AuthGate />
+          <Switch>
+            {/* Página pública do quiz — não exige login (é o que o paciente acessa) */}
+            <Route path="/q/:slug" component={PublicQuiz} />
+            {/* Todo o resto fica atrás da autenticação */}
+            <Route>
+              <AuthGate />
+            </Route>
+          </Switch>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

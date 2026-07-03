@@ -10,12 +10,16 @@ import {
   History,
   LogOut,
   ShieldCheck,
+  Users,
+  Filter,
 } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/leads", icon: Users, label: "Leads" },
+  { href: "/funil", icon: Filter, label: "Funil" },
   { href: "/generator", icon: Sparkles, label: "Gerar" },
   { href: "/images", icon: Image, label: "Imagens" },
   { href: "/video", icon: Video, label: "Vídeo" },
