@@ -60,13 +60,20 @@ export async function setupStaticServing(app: Express): Promise<void> {
     // SEO: injeta title + meta tags + JSON-LD por quiz na página pública.
     // Precede o catch-all para que crawlers e prévias de link recebam o HTML certo.
     const { buildQuizHead } = await import("./lib/salesSeo");
-    app.get("/q/:slug", async (req: Request, res: Response) => {
-      const indexPath = path.join(staticDir, "index.html");
-      let html = fs.readFileSync(indexPath, "utf-8");
+    const indexPath = path.join(staticDir, "index.html");
+    app.get("/q/:slug", async (req: Request, res: Response, next) => {
+      let html: string;
+      try {
+        html = fs.readFileSync(indexPath, "utf-8");
+      } catch {
+        next();
+        return;
+      }
       try {
         const origin = `${req.protocol}://${req.get("host")}`;
         const seo = await buildQuizHead(String(req.params.slug), origin);
         if (seo) {
+          html = html.replace(/<html\b[^>]*>/i, '<html lang="pt-BR">');
           html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
           html = html.replace("</head>", `${seo.head}\n</head>`);
         }

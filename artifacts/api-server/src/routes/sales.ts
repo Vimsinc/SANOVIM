@@ -663,7 +663,7 @@ router.get("/public/referral/:code", async (req: Request, res: Response): Promis
   }
   await db
     .update(referralsTable)
-    .set({ clicks: referral.clicks + 1 })
+    .set({ clicks: sql`${referralsTable.clicks} + 1` })
     .where(eq(referralsTable.id, referral.id));
   res.json({
     code: referral.code,

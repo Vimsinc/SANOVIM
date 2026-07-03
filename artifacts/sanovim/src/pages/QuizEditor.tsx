@@ -212,9 +212,16 @@ export default function QuizEditor() {
                     setSlug(slugify(e.target.value));
                   }}
                   placeholder="dor-no-joelho"
-                  className={inputCls}
+                  disabled={!!editingId}
+                  title={editingId ? "O link público não pode ser alterado após a criação" : undefined}
+                  className={`${inputCls} ${editingId ? "opacity-60 cursor-not-allowed" : ""}`}
                 />
               </div>
+              {editingId ? (
+                <span className="text-[11px] text-muted-foreground mt-1 block">
+                  O link não pode mudar depois de criado (para não quebrar quem já recebeu).
+                </span>
+              ) : null}
             </Field>
             <Field label="Especialidade">
               <select value={specialty} onChange={(e) => setSpecialty(e.target.value)} className={inputCls}>

@@ -95,12 +95,24 @@ export default function Referrals() {
     }
   }
 
+  function resolveSlug(r: Referral): string | null {
+    return r.quizSlug || quizzes[0]?.slug || null;
+  }
+
   function link(r: Referral) {
-    const slug = r.quizSlug || quizzes[0]?.slug || "dor-no-joelho";
+    const slug = resolveSlug(r) ?? "";
     return `${window.location.origin}/q/${slug}?ref=${r.code}`;
   }
 
   function copy(r: Referral) {
+    if (!resolveSlug(r)) {
+      toast({
+        title: "Crie um quiz primeiro",
+        description: "A indicação precisa apontar para um quiz ativo. Crie um na aba Funil.",
+        variant: "destructive",
+      });
+      return;
+    }
     navigator.clipboard.writeText(link(r));
     setCopied(r.code);
     setTimeout(() => setCopied(null), 1500);
