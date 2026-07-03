@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 // ---------------------------------------------------------------------------
@@ -38,8 +38,12 @@ export type ResultBand = {
 };
 
 // Quizzes / iscas de engajamento
-export const quizzesTable = pgTable("vibe_quizzes", {
+export const quizzesTable = pgTable(
+  "vibe_quizzes",
+  {
   id: serial("id").primaryKey(),
+  // Dono (vibe_users.id) — escopo multi-clínica. Null = legado/global.
+  ownerId: integer("owner_id"),
   // URL pública: /q/:slug
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
@@ -63,7 +67,9 @@ export const quizzesTable = pgTable("vibe_quizzes", {
   sourceTopics: jsonb("source_topics").$type<string[]>().default([]),
   aiGenerated: boolean("ai_generated").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [index("idx_quizzes_owner").on(t.ownerId)],
+);
 
 export type Quiz = typeof quizzesTable.$inferSelect;
 export type InsertQuiz = typeof quizzesTable.$inferInsert;
@@ -87,8 +93,12 @@ export const LEAD_STATUSES = [
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 // Leads capturados
-export const leadsTable = pgTable("vibe_leads", {
+export const leadsTable = pgTable(
+  "vibe_leads",
+  {
   id: serial("id").primaryKey(),
+  // Dono (vibe_users.id) — herdado do quiz de origem
+  ownerId: integer("owner_id"),
   quizId: integer("quiz_id"),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
@@ -113,20 +123,34 @@ export const leadsTable = pgTable("vibe_leads", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [
+    index("idx_leads_owner").on(t.ownerId),
+    index("idx_leads_quiz").on(t.quizId),
+    index("idx_leads_status").on(t.status),
+    index("idx_leads_temperature").on(t.temperature),
+    index("idx_leads_source").on(t.source),
+    index("idx_leads_referred_by").on(t.referredByCode),
+    index("idx_leads_created").on(t.createdAt),
+  ],
+);
 
 export type Lead = typeof leadsTable.$inferSelect;
 export type InsertLead = typeof leadsTable.$inferInsert;
 
 // Linha do tempo / eventos do lead (mudança de status, notas, follow-up)
-export const leadEventsTable = pgTable("vibe_lead_events", {
+export const leadEventsTable = pgTable(
+  "vibe_lead_events",
+  {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id").notNull(),
   // status_change | note | message | follow_up | created
   type: text("type").notNull(),
   payload: jsonb("payload").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [index("idx_lead_events_lead").on(t.leadId)],
+);
 
 export type LeadEvent = typeof leadEventsTable.$inferSelect;
 
@@ -135,7 +159,9 @@ export const FOLLOWUP_STATUSES = ["pending", "done", "skipped", "cancelled"] as 
 export type FollowupStatus = (typeof FOLLOWUP_STATUSES)[number];
 
 // Fila de follow-up (cadência de valor) — uma linha por toque planejado
-export const followupsTable = pgTable("vibe_followups", {
+export const followupsTable = pgTable(
+  "vibe_followups",
+  {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id").notNull(),
   // ordem do toque na cadência (1, 2, 3...)
@@ -150,14 +176,23 @@ export const followupsTable = pgTable("vibe_followups", {
   status: text("status").notNull().default("pending"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [
+    index("idx_followups_lead").on(t.leadId),
+    index("idx_followups_status_due").on(t.status, t.dueAt),
+  ],
+);
 
 export type Followup = typeof followupsTable.$inferSelect;
 export type InsertFollowup = typeof followupsTable.$inferInsert;
 
 // Programa de indicação — um código por paciente que indica
-export const referralsTable = pgTable("vibe_referrals", {
+export const referralsTable = pgTable(
+  "vibe_referrals",
+  {
   id: serial("id").primaryKey(),
+  // Dono (vibe_users.id)
+  ownerId: integer("owner_id"),
   code: text("code").notNull().unique(),
   // Nome de quem indica (paciente embaixador)
   patientName: text("patient_name").notNull(),
@@ -171,7 +206,9 @@ export const referralsTable = pgTable("vibe_referrals", {
   clicks: integer("clicks").notNull().default(0),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [index("idx_referrals_owner").on(t.ownerId)],
+);
 
 export type Referral = typeof referralsTable.$inferSelect;
 export type InsertReferral = typeof referralsTable.$inferInsert;
