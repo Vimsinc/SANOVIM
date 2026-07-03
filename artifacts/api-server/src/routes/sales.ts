@@ -15,7 +15,7 @@ import {
   type LeadAnswer,
   type LeadStatus,
 } from "@workspace/db";
-import { and, desc, asc, eq, lte, count } from "drizzle-orm";
+import { and, desc, asc, eq, lte, lt, count, sql } from "drizzle-orm";
 import { DEFAULT_QUIZZES } from "../lib/salesSeed";
 import { CADENCE_BY_TEMPERATURE, renderMessage } from "../lib/salesCadence";
 
@@ -362,6 +362,115 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
     bySpecialty: bySpecialty.map((r) => ({ specialty: r.specialty, total: Number(r.total) })),
     conversion: {
       leadToAgendamento: totalLeads ? Math.round((agendados / totalLeads) * 100) : 0,
+      leadToFechado: totalLeads ? Math.round((fechados / totalLeads) * 100) : 0,
+    },
+  });
+});
+
+// ---- KPIs (dashboard completo) --------------------------------------------
+
+router.get("/kpis", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const [total] = await db.select({ total: count() }).from(leadsTable);
+  const totalLeads = Number(total.total);
+
+  const byStatus = await db
+    .select({ status: leadsTable.status, total: count() })
+    .from(leadsTable)
+    .groupBy(leadsTable.status);
+  const statusMap: Record<string, number> = {};
+  for (const s of LEAD_STATUSES) statusMap[s] = 0;
+  for (const r of byStatus) statusMap[r.status] = Number(r.total);
+
+  const byTemperature = await db
+    .select({ temperature: leadsTable.temperature, total: count() })
+    .from(leadsTable)
+    .groupBy(leadsTable.temperature);
+
+  const bySpecialty = await db
+    .select({ specialty: leadsTable.specialty, total: count() })
+    .from(leadsTable)
+    .groupBy(leadsTable.specialty);
+
+  const bySource = await db
+    .select({ source: leadsTable.source, total: count() })
+    .from(leadsTable)
+    .groupBy(leadsTable.source);
+
+  // Timeline: leads por dia nos últimos 30 dias
+  const timeline = await db.execute<{ day: string; total: string }>(
+    sql`SELECT DATE_TRUNC('day', created_at)::date AS day, COUNT(*) AS total
+        FROM vibe_leads
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY 1 ORDER BY 1`,
+  );
+
+  // Top quizzes por leads captados
+  const topQuizzes = await db
+    .select({ title: quizzesTable.title, slug: quizzesTable.slug, total: count(leadsTable.id) })
+    .from(quizzesTable)
+    .leftJoin(leadsTable, eq(leadsTable.quizId, quizzesTable.id))
+    .groupBy(quizzesTable.id, quizzesTable.title, quizzesTable.slug)
+    .orderBy(desc(count(leadsTable.id)))
+    .limit(8);
+
+  // Indicação: leads e conversões vindos de código de indicação
+  const [refLeads] = await db
+    .select({ total: count() })
+    .from(leadsTable)
+    .where(sql`${leadsTable.referredByCode} IS NOT NULL`);
+  const [refWon] = await db
+    .select({ total: count() })
+    .from(leadsTable)
+    .where(and(sql`${leadsTable.referredByCode} IS NOT NULL`, eq(leadsTable.status, "fechado")));
+  const [activeCodes] = await db
+    .select({ total: count() })
+    .from(referralsTable)
+    .where(eq(referralsTable.active, true));
+
+  // Follow-ups: adesão
+  const fuByStatus = await db
+    .select({ status: followupsTable.status, total: count() })
+    .from(followupsTable)
+    .groupBy(followupsTable.status);
+  const fuMap: Record<string, number> = {};
+  for (const r of fuByStatus) fuMap[r.status] = Number(r.total);
+  const [overdue] = await db
+    .select({ total: count() })
+    .from(followupsTable)
+    .where(and(eq(followupsTable.status, "pending"), lt(followupsTable.dueAt, new Date())));
+
+  const agendados = statusMap["agendado"] + statusMap["compareceu"] + statusMap["fechado"];
+  const fechados = statusMap["fechado"];
+
+  res.json({
+    totalLeads,
+    funnel: LEAD_STATUSES.map((stage) => ({ stage, count: statusMap[stage] })),
+    byTemperature: Object.fromEntries(byTemperature.map((r) => [r.temperature, Number(r.total)])),
+    bySpecialty: bySpecialty.map((r) => ({ specialty: r.specialty, total: Number(r.total) })),
+    bySource: bySource
+      .map((r) => ({ source: r.source ?? "direto", total: Number(r.total) }))
+      .sort((a, b) => b.total - a.total),
+    timeline: (timeline.rows as { day: string; total: string }[]).map((r) => ({
+      day: r.day,
+      total: Number(r.total),
+    })),
+    topQuizzes: topQuizzes.map((q) => ({ title: q.title, slug: q.slug, total: Number(q.total) })),
+    referrals: {
+      leads: Number(refLeads.total),
+      conversions: Number(refWon.total),
+      activeCodes: Number(activeCodes.total),
+    },
+    followups: {
+      done: fuMap["done"] ?? 0,
+      pending: fuMap["pending"] ?? 0,
+      cancelled: fuMap["cancelled"] ?? 0,
+      overdue: Number(overdue.total),
+    },
+    conversion: {
+      leadToAgendamento: totalLeads ? Math.round((agendados / totalLeads) * 100) : 0,
+      agendamentoToFechado: agendados ? Math.round((fechados / agendados) * 100) : 0,
       leadToFechado: totalLeads ? Math.round((fechados / totalLeads) * 100) : 0,
     },
   });

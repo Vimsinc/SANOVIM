@@ -16,6 +16,7 @@ import Funnel from "@/pages/Funnel";
 import QuizEditor from "@/pages/QuizEditor";
 import Followups from "@/pages/Followups";
 import Referrals from "@/pages/Referrals";
+import Kpis from "@/pages/Kpis";
 import PublicQuiz from "@/pages/PublicQuiz";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@workspace/replit-auth-web";
@@ -73,6 +74,7 @@ function AppLayout() {
           <Route path="/quiz-editor/:id" component={QuizEditor} />
           <Route path="/quiz-editor" component={QuizEditor} />
           <Route path="/indicacoes" component={Referrals} />
+          <Route path="/kpis" component={Kpis} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
         </Switch>
