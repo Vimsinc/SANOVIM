@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Users,
   Filter,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -19,6 +20,7 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/leads", icon: Users, label: "Leads" },
+  { href: "/retornos", icon: CalendarClock, label: "Retornos" },
   { href: "/funil", icon: Filter, label: "Funil" },
   { href: "/generator", icon: Sparkles, label: "Gerar" },
   { href: "/images", icon: Image, label: "Imagens" },

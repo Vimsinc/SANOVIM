@@ -121,6 +121,31 @@ export const leadEventsTable = pgTable("vibe_lead_events", {
 
 export type LeadEvent = typeof leadEventsTable.$inferSelect;
 
+// Status de uma tarefa de follow-up
+export const FOLLOWUP_STATUSES = ["pending", "done", "skipped", "cancelled"] as const;
+export type FollowupStatus = (typeof FOLLOWUP_STATUSES)[number];
+
+// Fila de follow-up (cadência de valor) — uma linha por toque planejado
+export const followupsTable = pgTable("vibe_followups", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull(),
+  // ordem do toque na cadência (1, 2, 3...)
+  stepOrder: integer("step_order").notNull().default(1),
+  // whatsapp | email
+  channel: text("channel").notNull().default("whatsapp"),
+  title: text("title").notNull(),
+  // mensagem sugerida (já com o nome do paciente)
+  message: text("message").notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  // pending | done | skipped | cancelled
+  status: text("status").notNull().default("pending"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Followup = typeof followupsTable.$inferSelect;
+export type InsertFollowup = typeof followupsTable.$inferInsert;
+
 // Zod para validar submissão pública do quiz
 export const submitQuizSchema = z.object({
   name: z.string().min(2).max(120),

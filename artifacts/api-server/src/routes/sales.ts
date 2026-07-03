@@ -4,16 +4,42 @@ import {
   quizzesTable,
   leadsTable,
   leadEventsTable,
+  followupsTable,
   submitQuizSchema,
   LEAD_STATUSES,
+  FOLLOWUP_STATUSES,
   type Quiz,
   type QuizQuestion,
   type ResultBand,
   type LeadAnswer,
   type LeadStatus,
 } from "@workspace/db";
-import { and, desc, eq, sql, count } from "drizzle-orm";
+import { and, desc, asc, eq, lte, count } from "drizzle-orm";
 import { DEFAULT_QUIZZES } from "../lib/salesSeed";
+import { CADENCE_BY_TEMPERATURE, renderMessage } from "../lib/salesCadence";
+
+// Estágios em que a captação terminou → cancela follow-ups pendentes
+const TERMINAL_STATUSES = new Set(["agendado", "compareceu", "fechado", "perdido"]);
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name.trim();
+}
+
+/** Gera a fila de follow-up de um lead conforme a cadência da sua temperatura. */
+async function generateFollowups(leadId: number, temperature: string, name: string): Promise<void> {
+  const steps = CADENCE_BY_TEMPERATURE[temperature] ?? CADENCE_BY_TEMPERATURE.frio;
+  const now = Date.now();
+  const rows = steps.map((s) => ({
+    leadId,
+    stepOrder: s.order,
+    channel: s.channel,
+    title: s.title,
+    message: renderMessage(s.message, firstName(name)),
+    dueAt: new Date(now + s.offsetHours * 3600 * 1000),
+    status: "pending" as const,
+  }));
+  if (rows.length) await db.insert(followupsTable).values(rows);
+}
 
 const router = Router();
 
@@ -162,6 +188,9 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
     payload: { via: "quiz", slug: quiz.slug, score, temperature },
   });
 
+  // Gera a cadência de follow-up automática conforme a temperatura
+  await generateFollowups(lead.id, temperature, name);
+
   const waMessage =
     `Olá! Fiz o quiz "${quiz.title}" e quero agendar uma avaliação.\n` +
     `Nome: ${name.trim()}\n` +
@@ -247,6 +276,13 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
       type: "status_change",
       payload: { from: existing.status, to: status, by: req.user?.email },
     });
+    // Ao entrar num estágio terminal, cancela follow-ups pendentes deste lead
+    if (TERMINAL_STATUSES.has(status)) {
+      await db
+        .update(followupsTable)
+        .set({ status: "cancelled" })
+        .where(and(eq(followupsTable.leadId, id), eq(followupsTable.status, "pending")));
+    }
   }
   if (typeof notes === "string" && notes.trim()) {
     await db.insert(leadEventsTable).values({
@@ -389,6 +425,73 @@ router.post("/quizzes/seed", async (req: Request, res: Response): Promise<void> 
 
   const created = await db.insert(quizzesTable).values(toCreate).returning({ slug: quizzesTable.slug });
   res.status(201).json({ created: created.length, slugs: created.map((c) => c.slug) });
+});
+
+// ---- Follow-ups (cadência) ------------------------------------------------
+
+// Fila de retornos. scope=due (vencidos + de hoje) | upcoming | all
+router.get("/followups", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const scope = String(req.query.scope ?? "due");
+
+  const conditions = [eq(followupsTable.status, "pending")];
+  if (scope === "due") {
+    // vence até o fim do dia de hoje
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    conditions.push(lte(followupsTable.dueAt, endOfToday));
+  }
+
+  const rows = await db
+    .select({
+      id: followupsTable.id,
+      leadId: followupsTable.leadId,
+      stepOrder: followupsTable.stepOrder,
+      channel: followupsTable.channel,
+      title: followupsTable.title,
+      message: followupsTable.message,
+      dueAt: followupsTable.dueAt,
+      status: followupsTable.status,
+      leadName: leadsTable.name,
+      leadPhone: leadsTable.phone,
+      leadTemperature: leadsTable.temperature,
+      leadStatus: leadsTable.status,
+    })
+    .from(followupsTable)
+    .innerJoin(leadsTable, eq(followupsTable.leadId, leadsTable.id))
+    .where(and(...conditions))
+    .orderBy(asc(followupsTable.dueAt))
+    .limit(300);
+
+  res.json(rows);
+});
+
+router.patch("/followups/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = Number(req.params.id);
+  const { status } = req.body as { status?: string };
+  if (!status || !(FOLLOWUP_STATUSES as readonly string[]).includes(status)) {
+    res.status(400).json({ error: "status inválido" });
+    return;
+  }
+  const completedAt = status === "done" || status === "skipped" ? new Date() : null;
+  const [updated] = await db
+    .update(followupsTable)
+    .set({ status, completedAt })
+    .where(eq(followupsTable.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Follow-up não encontrado" });
+    return;
+  }
+  if (status === "done") {
+    await db.insert(leadEventsTable).values({
+      leadId: updated.leadId,
+      type: "follow_up",
+      payload: { title: updated.title, by: req.user?.email },
+    });
+  }
+  res.json(updated);
 });
 
 export default router;
