@@ -1,8 +1,10 @@
 import { logger } from "./logger";
+import { searchGoogleTrends } from "./serper";
+import { getTopPosts } from "./instagram";
 
-// Descobre os temas/perguntas mais pesquisados por tema de saúde no Brasil,
-// usando o Serper (Google). O bloco "People Also Ask" e "Related Searches"
-// representam, na prática, o que as pessoas mais buscam sobre o assunto.
+// Descobre os temas/perguntas mais buscados e mais engajados por tema de saúde,
+// combinando três fontes: Google (People Also Ask + related), Google Trends e
+// Instagram (posts com mais engajamento da conta correspondente).
 
 export const THEMES = {
   "medicina-esportiva": {
@@ -13,18 +15,23 @@ export const THEMES = {
       "dor muscular treino",
       "tratamento tendinite atleta",
     ],
+    // conta do Instagram que representa esse tema (lib/instagram.ts)
+    instagramAccount: "loysby",
   },
   ortopedia: {
     label: "Ortopedia",
     seeds: ["dor no joelho", "dor no ombro", "dor na coluna", "dor no quadril"],
+    instagramAccount: "loysby",
   },
   tricologia: {
     label: "Tricologia",
     seeds: ["queda de cabelo", "calvície", "cabelo afinando", "couro cabeludo"],
+    instagramAccount: "drdaniel",
   },
   "terapia-capilar": {
     label: "Terapia Capilar",
     seeds: ["tratamento capilar queda", "cabelo ralo o que fazer", "caspa e queda", "cabelo sem volume"],
+    instagramAccount: "drdaniel",
   },
 } as const;
 
@@ -34,10 +41,17 @@ export function isTheme(v: string): v is ThemeKey {
   return v in THEMES;
 }
 
+export interface ThemeSignals {
+  googleQuestions: string[]; // People Also Ask
+  googleRelated: string[]; // buscas relacionadas
+  googleTrends: string[]; // Google Trends (consultas em alta)
+  instagramTopics: string[]; // temas dos posts que mais engajaram
+  instagramHashtags: string[]; // hashtags que mais aparecem
+}
+
 interface SerperSearchResponse {
   peopleAlsoAsk?: { question: string }[];
   relatedSearches?: { query: string }[];
-  organic?: { title: string; snippet?: string }[];
 }
 
 async function serperSearch(query: string): Promise<SerperSearchResponse | null> {
@@ -60,34 +74,90 @@ async function serperSearch(query: string): Promise<SerperSearchResponse | null>
   }
 }
 
+const HASHTAG_RE = /#[\p{L}\p{N}_]+/gu;
+
+/** Extrai temas (1ª frase, sem hashtags) e hashtags das legendas do Instagram. */
+function extractFromCaptions(captions: string[]): { topics: string[]; hashtags: string[] } {
+  const topics = new Set<string>();
+  const hashtags = new Set<string>();
+  for (const raw of captions) {
+    if (!raw) continue;
+    for (const tag of raw.match(HASHTAG_RE) ?? []) hashtags.add(tag.toLowerCase());
+    const clean = raw.replace(HASHTAG_RE, "").trim();
+    // primeira frase/linha como "tema"
+    const firstLine = clean.split(/[.\n!?]/)[0]?.trim();
+    if (firstLine && firstLine.length > 12) topics.add(firstLine.slice(0, 100));
+  }
+  return { topics: Array.from(topics).slice(0, 10), hashtags: Array.from(hashtags).slice(0, 15) };
+}
+
+async function fetchInstagramSignals(account: string): Promise<{ topics: string[]; hashtags: string[] }> {
+  try {
+    const posts = await getTopPosts(account);
+    return extractFromCaptions(posts.map((p) => p.caption ?? ""));
+  } catch (err) {
+    logger.warn({ err, account }, "Instagram signals unavailable");
+    return { topics: [], hashtags: [] };
+  }
+}
+
+async function fetchGoogleTrends(seed: string): Promise<string[]> {
+  try {
+    const topics = await searchGoogleTrends(seed);
+    return topics.map((t) => t.query).filter(Boolean).slice(0, 12);
+  } catch (err) {
+    logger.warn({ err, seed }, "Google Trends unavailable");
+    return [];
+  }
+}
+
 /**
- * Retorna as perguntas/temas mais pesquisados sobre um tema.
- * Combina People Also Ask + Related Searches de várias sementes.
- * Se o SERPER_KEY não estiver configurado, devolve lista vazia (a IA usa
- * o próprio conhecimento como fallback).
+ * Agrega todos os sinais de um tema (Google buscas + Google Trends + Instagram).
+ * Fontes indisponíveis (sem chave/token) simplesmente retornam vazio, e a IA
+ * usa o que houver — no limite, o próprio conhecimento.
  */
-export async function fetchMostSearched(theme: ThemeKey): Promise<{
-  questions: string[];
-  related: string[];
-}> {
-  const { seeds } = THEMES[theme];
-  const results = await Promise.all(seeds.map((s) => serperSearch(s)));
+export async function gatherThemeSignals(theme: ThemeKey): Promise<ThemeSignals> {
+  const cfg = THEMES[theme];
 
-  const questions = new Set<string>();
-  const related = new Set<string>();
+  const [searchResults, trends, ig] = await Promise.all([
+    Promise.all(cfg.seeds.map((s) => serperSearch(s))),
+    fetchGoogleTrends(cfg.seeds[0]),
+    fetchInstagramSignals(cfg.instagramAccount),
+  ]);
 
-  for (const r of results) {
+  const googleQuestions = new Set<string>();
+  const googleRelated = new Set<string>();
+  for (const r of searchResults) {
     if (!r) continue;
-    for (const paa of r.peopleAlsoAsk ?? []) {
-      if (paa.question) questions.add(paa.question.trim());
-    }
-    for (const rs of r.relatedSearches ?? []) {
-      if (rs.query) related.add(rs.query.trim());
-    }
+    for (const paa of r.peopleAlsoAsk ?? []) if (paa.question) googleQuestions.add(paa.question.trim());
+    for (const rs of r.relatedSearches ?? []) if (rs.query) googleRelated.add(rs.query.trim());
   }
 
   return {
-    questions: Array.from(questions).slice(0, 20),
-    related: Array.from(related).slice(0, 20),
+    googleQuestions: Array.from(googleQuestions).slice(0, 18),
+    googleRelated: Array.from(googleRelated).slice(0, 18),
+    googleTrends: trends,
+    instagramTopics: ig.topics,
+    instagramHashtags: ig.hashtags,
   };
+}
+
+export function countSignals(s: ThemeSignals): number {
+  return (
+    s.googleQuestions.length +
+    s.googleRelated.length +
+    s.googleTrends.length +
+    s.instagramTopics.length +
+    s.instagramHashtags.length
+  );
+}
+
+export function flattenSignals(s: ThemeSignals): string[] {
+  return [
+    ...s.googleQuestions,
+    ...s.googleRelated,
+    ...s.googleTrends,
+    ...s.instagramTopics,
+    ...s.instagramHashtags,
+  ];
 }

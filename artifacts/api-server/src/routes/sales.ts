@@ -18,7 +18,7 @@ import {
 import { and, desc, asc, eq, lte, lt, count, sql } from "drizzle-orm";
 import { DEFAULT_QUIZZES } from "../lib/salesSeed";
 import { CADENCE_BY_TEMPERATURE, renderMessage } from "../lib/salesCadence";
-import { fetchMostSearched, isTheme, THEMES } from "../lib/salesTopics";
+import { gatherThemeSignals, flattenSignals, countSignals, isTheme, THEMES } from "../lib/salesTopics";
 import { generateQuizForTheme } from "../lib/salesQuizAI";
 
 // Estágios em que a captação terminou → cancela follow-ups pendentes
@@ -577,8 +577,8 @@ router.post("/quizzes/generate", async (req: Request, res: Response): Promise<vo
   }
 
   try {
-    const topics = await fetchMostSearched(theme);
-    const generated = await generateQuizForTheme(theme, topics);
+    const signals = await gatherThemeSignals(theme);
+    const generated = await generateQuizForTheme(theme, signals);
 
     // Garante slug único
     let slug = generated.slug;
@@ -605,14 +605,19 @@ router.post("/quizzes/generate", async (req: Request, res: Response): Promise<vo
         metaTitle: generated.metaTitle,
         metaDescription: generated.metaDescription,
         keywords: generated.keywords,
-        sourceTopics: [...topics.questions, ...topics.related].slice(0, 30),
+        sourceTopics: flattenSignals(signals).slice(0, 40),
         aiGenerated: true,
       })
       .returning();
 
     res.status(201).json({
       quiz: created,
-      basedOn: { questions: topics.questions.length, related: topics.related.length },
+      basedOn: {
+        total: countSignals(signals),
+        google: signals.googleQuestions.length + signals.googleRelated.length,
+        googleTrends: signals.googleTrends.length,
+        instagram: signals.instagramTopics.length + signals.instagramHashtags.length,
+      },
     });
   } catch (err) {
     req.log.error({ err }, "quiz generate error");

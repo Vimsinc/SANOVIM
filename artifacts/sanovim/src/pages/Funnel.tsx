@@ -108,10 +108,14 @@ export default function Funnel() {
       });
       if (res.ok) {
         const d = await res.json();
-        const base = (d.basedOn?.questions ?? 0) + (d.basedOn?.related ?? 0);
+        const b = d.basedOn ?? {};
+        const parts: string[] = [];
+        if (b.google) parts.push(`${b.google} do Google`);
+        if (b.googleTrends) parts.push(`${b.googleTrends} do Google Trends`);
+        if (b.instagram) parts.push(`${b.instagram} do Instagram`);
         toast({
           title: "Quiz gerado com IA",
-          description: `"${d.quiz.title}"${base ? ` — baseado em ${base} termos mais pesquisados` : ""}`,
+          description: `"${d.quiz.title}"${parts.length ? ` — baseado em ${parts.join(", ")}` : ""}`,
         });
         load();
       } else {
@@ -191,8 +195,9 @@ export default function Funnel() {
               <div>
                 <h3 className="font-semibold text-foreground">Gerar quiz com IA por tema</h3>
                 <p className="text-sm text-muted-foreground">
-                  A IA descobre os temas mais pesquisados pelas pessoas (Google/People Also Ask) e monta um quiz
-                  completo — perguntas, pontuação e SEO — pronto para captar.
+                  A IA cruza o que o público mais busca e engaja — <strong>Google</strong>, <strong>Google
+                  Trends</strong> e <strong>Instagram</strong> — e monta um quiz completo (perguntas, pontuação e
+                  SEO) pronto para captar.
                 </p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

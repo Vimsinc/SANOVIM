@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
-import { THEMES, type ThemeKey } from "./salesTopics";
+import { THEMES, type ThemeKey, type ThemeSignals } from "./salesTopics";
 import type { QuizQuestion, ResultBand } from "@workspace/db";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -79,19 +79,29 @@ function sanitize(raw: any, theme: ThemeKey): GeneratedQuiz {
  * Gera um quiz de captação completo para um tema, embasado nas perguntas mais
  * pesquisadas pelas pessoas, e otimizado para SEO.
  */
+function signalsBlock(s: ThemeSignals): string {
+  const parts: string[] = [];
+  if (s.googleQuestions.length)
+    parts.push(`GOOGLE — Perguntas mais feitas (People Also Ask):\n${s.googleQuestions.map((q) => `- ${q}`).join("\n")}`);
+  if (s.googleRelated.length)
+    parts.push(`GOOGLE — Buscas relacionadas:\n${s.googleRelated.map((q) => `- ${q}`).join("\n")}`);
+  if (s.googleTrends.length)
+    parts.push(`GOOGLE TRENDS — Consultas em alta:\n${s.googleTrends.map((q) => `- ${q}`).join("\n")}`);
+  if (s.instagramTopics.length)
+    parts.push(`INSTAGRAM — Temas dos posts que mais engajaram o público:\n${s.instagramTopics.map((q) => `- ${q}`).join("\n")}`);
+  if (s.instagramHashtags.length)
+    parts.push(`INSTAGRAM — Hashtags recorrentes (use como sementes de palavras-chave):\n${s.instagramHashtags.map((q) => `- ${q}`).join("\n")}`);
+  return parts.length
+    ? `SINAIS REAIS DO QUE O PÚBLICO MAIS BUSCA E ENGAJA (use como base para os temas do quiz e para o SEO):\n\n${parts.join("\n\n")}`
+    : "Não há dados de busca/engajamento disponíveis; use seu conhecimento sobre as dúvidas mais comuns do público brasileiro sobre o tema.";
+}
+
 export async function generateQuizForTheme(
   theme: ThemeKey,
-  topics: { questions: string[]; related: string[] },
+  signals: ThemeSignals,
 ): Promise<GeneratedQuiz> {
   const themeLabel = THEMES[theme].label;
-  const searchedBlock =
-    topics.questions.length || topics.related.length
-      ? `PERGUNTAS/TERMOS MAIS PESQUISADOS PELAS PESSOAS (use como base real para os temas do quiz e para as palavras-chave de SEO):
-Perguntas (People Also Ask):
-${topics.questions.map((q) => `- ${q}`).join("\n") || "- (nenhuma)"}
-Buscas relacionadas:
-${topics.related.map((q) => `- ${q}`).join("\n") || "- (nenhuma)"}`
-      : "Não há dados de busca disponíveis; use seu conhecimento sobre as dúvidas mais comuns do público brasileiro sobre o tema.";
+  const searchedBlock = signalsBlock(signals);
 
   const system = `Você é especialista em marketing de saúde e copywriting de conversão no Brasil.
 Cria quizzes de captação de leads que engajam e qualificam pacientes, seguindo as normas do CFM (Resolução 2.336/2023): NÃO prometa cura ou resultado garantido, NÃO use sensacionalismo, foque em educar e convidar para uma avaliação. Responda SEMPRE em JSON válido, sem texto fora do JSON.`;
