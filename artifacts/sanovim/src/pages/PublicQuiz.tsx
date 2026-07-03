@@ -187,7 +187,7 @@ export default function PublicQuiz() {
             )}
           </div>
           <button
-            onClick={() => setPhase("questions")}
+            onClick={() => setPhase(quiz.questions.length ? "questions" : "contact")}
             className="inline-flex items-center gap-2 py-3 px-7 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors"
           >
             Começar <ArrowRight className="w-4 h-4" />
@@ -198,7 +198,7 @@ export default function PublicQuiz() {
         </div>
       )}
 
-      {phase === "questions" && (
+      {phase === "questions" && quiz.questions[step] && (
         <div className="space-y-6">
           <div>
             <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">

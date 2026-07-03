@@ -186,10 +186,11 @@ export const submitQuizSchema = z.object({
   answers: z
     .array(
       z.object({
-        questionId: z.string(),
-        optionIndex: z.number().int().min(0),
+        questionId: z.string().max(80),
+        optionIndex: z.number().int().min(0).max(50),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(50),
 });
 export type SubmitQuizInput = z.infer<typeof submitQuizSchema>;

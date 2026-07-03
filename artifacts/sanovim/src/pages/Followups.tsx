@@ -145,7 +145,7 @@ export default function Followups() {
         ) : (
           <div className="space-y-2.5">
             {items.map((f) => {
-              const { icon: TIcon, cls } = TEMP_ICON[f.leadTemperature];
+              const { icon: TIcon, cls } = TEMP_ICON[f.leadTemperature] ?? TEMP_ICON.frio;
               const due = dueLabel(f.dueAt);
               return (
                 <div key={f.id} className="bg-card border border-border rounded-xl p-4">

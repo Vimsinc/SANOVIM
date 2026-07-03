@@ -73,9 +73,10 @@ export async function setupStaticServing(app: Express): Promise<void> {
         const origin = `${req.protocol}://${req.get("host")}`;
         const seo = await buildQuizHead(String(req.params.slug), origin);
         if (seo) {
-          html = html.replace(/<html\b[^>]*>/i, '<html lang="pt-BR">');
-          html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
-          html = html.replace("</head>", `${seo.head}\n</head>`);
+          // Substituições via função para não interpretar "$" como padrão de replace
+          html = html.replace(/<html\b[^>]*>/i, () => '<html lang="pt-BR">');
+          html = html.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${seo.title}</title>`);
+          html = html.replace("</head>", () => `${seo.head}\n</head>`);
         }
       } catch {
         // em caso de erro, serve o HTML padrão

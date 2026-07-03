@@ -38,7 +38,7 @@ export const THEMES = {
 export type ThemeKey = keyof typeof THEMES;
 
 export function isTheme(v: string): v is ThemeKey {
-  return v in THEMES;
+  return Object.prototype.hasOwnProperty.call(THEMES, v);
 }
 
 export interface ThemeSignals {

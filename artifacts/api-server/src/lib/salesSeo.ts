@@ -58,7 +58,11 @@ export async function buildQuizHead(
       `<meta name="twitter:card" content="summary_large_image" />`,
       `<meta name="twitter:title" content="${esc(title)}" />`,
       `<meta name="twitter:description" content="${esc(description)}" />`,
-      `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
+      // Escapa < > & para impedir breakout de </script> (XSS) no bloco JSON-LD
+      `<script type="application/ld+json">${JSON.stringify(jsonLd)
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e")
+        .replace(/&/g, "\\u0026")}</script>`,
     ]
       .filter(Boolean)
       .join("\n");

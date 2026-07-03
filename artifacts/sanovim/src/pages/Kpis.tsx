@@ -290,9 +290,9 @@ function BreakdownList({ items }: { items: { label: string; total: number }[] })
   if (items.length === 0) return <p className="text-sm text-muted-foreground">Sem dados ainda.</p>;
   return (
     <div className="space-y-2">
-      {items.map((it) => (
-        <div key={it.label} className="flex items-center gap-3">
-          <span className="w-32 text-xs text-foreground truncate shrink-0">{it.label}</span>
+      {items.map((it, i) => (
+        <div key={`${it.label ?? "—"}-${i}`} className="flex items-center gap-3">
+          <span className="w-32 text-xs text-foreground truncate shrink-0">{it.label || "—"}</span>
           <div className="flex-1 h-4 bg-muted rounded overflow-hidden">
             <div className="h-full bg-primary/60 rounded" style={{ width: `${(it.total / max) * 100}%` }} />
           </div>

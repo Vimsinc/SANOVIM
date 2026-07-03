@@ -78,6 +78,11 @@ export default function Funnel() {
         credentials: "include",
         body: JSON.stringify({ whatsappNumber: wa }),
       });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        toast({ title: e.error || "Erro ao criar quizzes", variant: "destructive" });
+        return;
+      }
       const data = await res.json();
       toast({
         title: data.created > 0 ? `${data.created} quiz(zes) criado(s)` : "Nada a criar",

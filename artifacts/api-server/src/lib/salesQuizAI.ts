@@ -71,7 +71,7 @@ function sanitize(raw: any, theme: ThemeKey): GeneratedQuiz {
     resultBands,
     metaTitle: String(raw.metaTitle ?? title).slice(0, 70),
     metaDescription: String(raw.metaDescription ?? raw.description ?? "").slice(0, 160),
-    keywords: Array.isArray(raw.keywords) ? raw.keywords.slice(0, 12).map((k: any) => String(k)) : [],
+    keywords: Array.isArray(raw.keywords) ? raw.keywords.slice(0, 12).map((k: any) => String(k).slice(0, 60)) : [],
   };
 }
 

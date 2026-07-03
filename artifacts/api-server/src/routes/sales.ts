@@ -73,6 +73,16 @@ function requireAuth(req: Request, res: Response): boolean {
   return true;
 }
 
+/** Lê e valida um id numérico de rota; responde 400 e retorna null se inválido. */
+function parseId(req: Request, res: Response): number | null {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "id inválido" });
+    return null;
+  }
+  return id;
+}
+
 /** Remove os pontos das opções antes de expor o quiz publicamente. */
 function toPublicQuiz(quiz: Quiz) {
   return {
@@ -103,12 +113,16 @@ function scoreSubmission(
   let score = 0;
   const tagCounts = new Map<string, number>();
   const leadAnswers: LeadAnswer[] = [];
+  const seen = new Set<string>();
 
   for (const ans of answers) {
+    // conta cada pergunta só uma vez (impede inflar score repetindo a resposta)
+    if (seen.has(ans.questionId)) continue;
     const question = questions.find((q) => q.id === ans.questionId);
     if (!question) continue;
     const option = question.options[ans.optionIndex];
     if (!option) continue;
+    seen.add(ans.questionId);
     score += option.points;
     if (option.tag) tagCounts.set(option.tag, (tagCounts.get(option.tag) ?? 0) + 1);
     leadAnswers.push({
@@ -267,7 +281,8 @@ router.get("/leads", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/leads/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id)).limit(1);
   if (!lead) {
     res.status(404).json({ error: "Lead não encontrado" });
@@ -283,7 +298,8 @@ router.get("/leads/:id", async (req: Request, res: Response): Promise<void> => {
 
 router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const { status, notes, lostReason, consciousness } = req.body as {
     status?: LeadStatus;
     notes?: string;
@@ -301,7 +317,8 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
   if (status && (LEAD_STATUSES as readonly string[]).includes(status)) update.status = status;
   if (typeof notes === "string") update.notes = notes;
   if (typeof lostReason === "string") update.lostReason = lostReason;
-  if (typeof consciousness === "number") update.consciousness = consciousness;
+  if (typeof consciousness === "number" && consciousness >= 1 && consciousness <= 5)
+    update.consciousness = Math.round(consciousness);
 
   const [updated] = await db.update(leadsTable).set(update).where(eq(leadsTable.id, id)).returning();
 
@@ -319,7 +336,7 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
         .where(and(eq(followupsTable.leadId, id), eq(followupsTable.status, "pending")));
     }
   }
-  if (typeof notes === "string" && notes.trim()) {
+  if (typeof notes === "string" && notes.trim() && notes.trim() !== (existing.notes ?? "").trim()) {
     await db.insert(leadEventsTable).values({
       leadId: id,
       type: "note",
@@ -454,9 +471,12 @@ router.get("/kpis", async (req: Request, res: Response): Promise<void> => {
     funnel: LEAD_STATUSES.map((stage) => ({ stage, count: statusMap[stage] })),
     byTemperature: Object.fromEntries(byTemperature.map((r) => [r.temperature, Number(r.total)])),
     bySpecialty: bySpecialty.map((r) => ({ specialty: r.specialty, total: Number(r.total) })),
-    bySource: bySource
-      .map((r) => ({ source: r.source ?? "direto", total: Number(r.total) }))
-      .sort((a, b) => b.total - a.total),
+    bySource: (() => {
+      // funde null e "direto" no mesmo balde
+      const m = new Map<string, number>();
+      for (const r of bySource) m.set(r.source ?? "direto", (m.get(r.source ?? "direto") ?? 0) + Number(r.total));
+      return Array.from(m, ([source, total]) => ({ source, total })).sort((a, b) => b.total - a.total);
+    })(),
     timeline: (timeline.rows as { day: string; total: string }[]).map((r) => ({
       day: r.day,
       total: Number(r.total),
@@ -499,7 +519,8 @@ router.get("/quizzes", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/quizzes/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, id)).limit(1);
   if (!quiz) {
     res.status(404).json({ error: "Quiz não encontrado" });
@@ -528,29 +549,43 @@ router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const [created] = await db
-    .insert(quizzesTable)
-    .values({
-      slug,
-      title,
-      specialty: specialty ?? "ortopedia",
-      segment: segment ?? null,
-      description: description ?? null,
-      whatsappNumber,
-      questions: (questions as QuizQuestion[]) ?? [],
-      resultBands: (resultBands as ResultBand[]) ?? [],
-    })
-    .returning();
-  res.status(201).json(created);
+  try {
+    const [created] = await db
+      .insert(quizzesTable)
+      .values({
+        slug,
+        title,
+        specialty: specialty ?? "ortopedia",
+        segment: segment ?? null,
+        description: description ?? null,
+        whatsappNumber,
+        questions: (questions as QuizQuestion[]) ?? [],
+        resultBands: (resultBands as ResultBand[]) ?? [],
+      })
+      .returning();
+    res.status(201).json(created);
+  } catch (err) {
+    // corrida no slug único (23505) → 409 em vez de 500
+    if ((err as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "Já existe um quiz com esse slug" });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const body = req.body as Partial<typeof quizzesTable.$inferInsert>;
   const allowed: Partial<typeof quizzesTable.$inferInsert> = {};
   for (const k of ["title", "specialty", "segment", "description", "whatsappNumber", "questions", "resultBands", "active"] as const) {
     if (k in body) (allowed as Record<string, unknown>)[k] = body[k];
+  }
+  if (Object.keys(allowed).length === 0) {
+    res.status(400).json({ error: "Nada para atualizar" });
+    return;
   }
   const [updated] = await db.update(quizzesTable).set(allowed).where(eq(quizzesTable.id, id)).returning();
   if (!updated) {
@@ -729,11 +764,16 @@ router.post("/referrals", async (req: Request, res: Response): Promise<void> => 
 
 router.patch("/referrals/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const body = req.body as Partial<typeof referralsTable.$inferInsert>;
   const allowed: Partial<typeof referralsTable.$inferInsert> = {};
   for (const k of ["patientName", "patientPhone", "specialty", "quizSlug", "rewardNote", "active"] as const) {
     if (k in body) (allowed as Record<string, unknown>)[k] = body[k];
+  }
+  if (Object.keys(allowed).length === 0) {
+    res.status(400).json({ error: "Nada para atualizar" });
+    return;
   }
   const [updated] = await db.update(referralsTable).set(allowed).where(eq(referralsTable.id, id)).returning();
   if (!updated) {
@@ -784,7 +824,8 @@ router.get("/followups", async (req: Request, res: Response): Promise<void> => {
 
 router.patch("/followups/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const id = Number(req.params.id);
+  const id = parseId(req, res);
+  if (id === null) return;
   const { status } = req.body as { status?: string };
   if (!status || !(FOLLOWUP_STATUSES as readonly string[]).includes(status)) {
     res.status(400).json({ error: "status inválido" });

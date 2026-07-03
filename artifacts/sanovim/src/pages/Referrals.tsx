@@ -87,9 +87,15 @@ export default function Referrals() {
         setName("");
         setPhone("");
         setReward("");
+        setQuizSlug("");
         toast({ title: "Código de indicação criado" });
         load();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        toast({ title: e.error || "Erro ao criar código", variant: "destructive" });
       }
+    } catch {
+      toast({ title: "Erro ao criar código", variant: "destructive" });
     } finally {
       setCreating(false);
     }
