@@ -18,6 +18,8 @@ import {
 import { and, desc, asc, eq, lte, lt, count, sql } from "drizzle-orm";
 import { DEFAULT_QUIZZES } from "../lib/salesSeed";
 import { CADENCE_BY_TEMPERATURE, renderMessage } from "../lib/salesCadence";
+import { fetchMostSearched, isTheme, THEMES } from "../lib/salesTopics";
+import { generateQuizForTheme } from "../lib/salesQuizAI";
 
 // Estágios em que a captação terminou → cancela follow-ups pendentes
 const TERMINAL_STATUSES = new Set(["agendado", "compareceu", "fechado", "perdido"]);
@@ -78,6 +80,9 @@ function toPublicQuiz(quiz: Quiz) {
     title: quiz.title,
     specialty: quiz.specialty,
     description: quiz.description,
+    metaTitle: quiz.metaTitle,
+    metaDescription: quiz.metaDescription,
+    keywords: quiz.keywords,
     questions: (quiz.questions as QuizQuestion[]).map((q) => ({
       id: q.id,
       question: q.question,
@@ -553,6 +558,66 @@ router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> 
     return;
   }
   res.json(updated);
+});
+
+// Gera automaticamente um quiz por tema, embasado nos temas mais pesquisados
+// (Google/People Also Ask) e otimizado para SEO, via IA.
+router.post("/quizzes/generate", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const { theme, whatsappNumber } = req.body as { theme?: string; whatsappNumber?: string };
+
+  if (!theme || !isTheme(theme)) {
+    res.status(400).json({ error: "Tema inválido", themes: Object.keys(THEMES) });
+    return;
+  }
+  const wa = (whatsappNumber ?? "").replace(/\D/g, "");
+  if (wa.length < 10) {
+    res.status(400).json({ error: "Informe o WhatsApp da clínica (com DDI e DDD)" });
+    return;
+  }
+
+  try {
+    const topics = await fetchMostSearched(theme);
+    const generated = await generateQuizForTheme(theme, topics);
+
+    // Garante slug único
+    let slug = generated.slug;
+    for (let i = 2; i < 30; i++) {
+      const [exists] = await db
+        .select({ id: quizzesTable.id })
+        .from(quizzesTable)
+        .where(eq(quizzesTable.slug, slug))
+        .limit(1);
+      if (!exists) break;
+      slug = `${generated.slug}-${i}`;
+    }
+
+    const [created] = await db
+      .insert(quizzesTable)
+      .values({
+        slug,
+        title: generated.title,
+        specialty: theme,
+        description: generated.description,
+        whatsappNumber: wa,
+        questions: generated.questions,
+        resultBands: generated.resultBands,
+        metaTitle: generated.metaTitle,
+        metaDescription: generated.metaDescription,
+        keywords: generated.keywords,
+        sourceTopics: [...topics.questions, ...topics.related].slice(0, 30),
+        aiGenerated: true,
+      })
+      .returning();
+
+    res.status(201).json({
+      quiz: created,
+      basedOn: { questions: topics.questions.length, related: topics.related.length },
+    });
+  } catch (err) {
+    req.log.error({ err }, "quiz generate error");
+    res.status(500).json({ error: "Não foi possível gerar o quiz agora. Tente novamente." });
+  }
 });
 
 // Cria os quizzes padrão do playbook (ortopedia) se ainda não existirem

@@ -23,7 +23,20 @@ interface PublicQuizData {
   title: string;
   specialty: string;
   description?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
   questions: PublicQuestion[];
+}
+
+function setMeta(name: string, content: string, attr: "name" | "property" = "name") {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${name}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
 }
 interface SubmitResult {
   result: { title: string; message: string; temperature: string };
@@ -63,6 +76,16 @@ export default function PublicQuiz() {
       .then((data: PublicQuizData) => {
         setQuiz(data);
         setPhase("intro");
+        // SEO client-side (complementa a injeção server-side)
+        const title = data.metaTitle || data.title;
+        const desc = data.metaDescription || data.description || "";
+        document.title = title;
+        if (desc) {
+          setMeta("description", desc);
+          setMeta("og:title", title, "property");
+          setMeta("og:description", desc, "property");
+        }
+        if (data.keywords?.length) setMeta("keywords", data.keywords.join(", "));
       })
       .catch(() => setPhase("notfound"));
   }, [slug]);

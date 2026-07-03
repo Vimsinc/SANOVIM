@@ -13,7 +13,16 @@ import {
   MessageCircle,
   Plus,
   Pencil,
+  Wand2,
+  Search,
 } from "lucide-react";
+
+const THEME_OPTIONS = [
+  { key: "medicina-esportiva", label: "Medicina Esportiva", emoji: "🏃" },
+  { key: "ortopedia", label: "Ortopedia", emoji: "🦴" },
+  { key: "tricologia", label: "Tricologia", emoji: "🔬" },
+  { key: "terapia-capilar", label: "Terapia Capilar", emoji: "💇" },
+];
 
 interface Quiz {
   id: number;
@@ -35,6 +44,8 @@ export default function Funnel() {
   const [seeding, setSeeding] = useState(false);
   const [wa, setWa] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [theme, setTheme] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -78,6 +89,42 @@ export default function Funnel() {
     }
   }
 
+  async function generateAI() {
+    if (!theme) {
+      toast({ title: "Escolha um tema", variant: "destructive" });
+      return;
+    }
+    if (wa.replace(/\D/g, "").length < 10) {
+      toast({ title: "Informe o WhatsApp da clínica", description: "Ex: 5511999998888", variant: "destructive" });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/sales/quizzes/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ theme, whatsappNumber: wa }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const base = (d.basedOn?.questions ?? 0) + (d.basedOn?.related ?? 0);
+        toast({
+          title: "Quiz gerado com IA",
+          description: `"${d.quiz.title}"${base ? ` — baseado em ${base} termos mais pesquisados` : ""}`,
+        });
+        load();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        toast({ title: e.error || "Erro ao gerar o quiz", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro ao gerar o quiz", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function toggleActive(quiz: Quiz) {
     const res = await fetch(`/api/sales/quizzes/${quiz.id}`, {
       method: "PATCH",
@@ -115,6 +162,79 @@ export default function Funnel() {
         }
       />
       <div className="p-4 md:p-6 space-y-6">
+        {/* WhatsApp da clínica (compartilhado) */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-muted-foreground mb-1.5">
+              WhatsApp da clínica (recebe os leads)
+            </span>
+            <div className="relative max-w-md">
+              <MessageCircle className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={wa}
+                onChange={(e) => setWa(e.target.value)}
+                placeholder="5511999998888 (com DDI 55 e DDD)"
+                inputMode="tel"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm focus:border-primary outline-none"
+              />
+            </div>
+          </label>
+        </div>
+
+        {/* Gerar quiz com IA por tema */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Wand2 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="font-semibold text-foreground">Gerar quiz com IA por tema</h3>
+                <p className="text-sm text-muted-foreground">
+                  A IA descobre os temas mais pesquisados pelas pessoas (Google/People Also Ask) e monta um quiz
+                  completo — perguntas, pontuação e SEO — pronto para captar.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {THEME_OPTIONS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTheme(t.key)}
+                    className={`px-3 py-3 rounded-xl border text-sm font-medium transition-all text-left ${
+                      theme === t.key
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-lg block mb-0.5">{t.emoji}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={generateAI}
+                  disabled={generating}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Pesquisando e gerando…
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" /> Gerar quiz do tema
+                    </>
+                  )}
+                </button>
+                {generating && (
+                  <span className="text-xs text-muted-foreground">Pode levar alguns segundos.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Seed / criação rápida */}
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-start gap-3">
@@ -123,32 +243,20 @@ export default function Funnel() {
             </div>
             <div className="flex-1 space-y-3">
               <div>
-                <h3 className="font-semibold text-foreground">Comece com os quizzes de ortopedia</h3>
+                <h3 className="font-semibold text-foreground">Ou comece com os quizzes prontos de ortopedia</h3>
                 <p className="text-sm text-muted-foreground">
-                  Cria automaticamente os quizzes "Dor no joelho" e "Dor no ombro" do playbook, já com
-                  perguntas e pontuação. Informe o WhatsApp da clínica que receberá os leads.
+                  Cria os quizzes "Dor no joelho" e "Dor no ombro" do playbook, já com perguntas e pontuação.
+                  Usa o WhatsApp informado acima.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="relative flex-1 min-w-[220px]">
-                  <MessageCircle className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    value={wa}
-                    onChange={(e) => setWa(e.target.value)}
-                    placeholder="WhatsApp da clínica (ex: 5511999998888)"
-                    inputMode="tel"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm focus:border-primary outline-none"
-                  />
-                </div>
-                <button
-                  onClick={seed}
-                  disabled={seeding}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Criar quizzes padrão
-                </button>
-              </div>
+              <button
+                onClick={seed}
+                disabled={seeding}
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg font-medium text-sm text-foreground hover:bg-muted disabled:opacity-60"
+              >
+                {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Criar quizzes padrão
+              </button>
             </div>
           </div>
         </div>

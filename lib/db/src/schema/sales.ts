@@ -55,6 +55,13 @@ export const quizzesTable = pgTable("vibe_quizzes", {
   // Faixas de resultado por score (ordem crescente de min)
   resultBands: jsonb("result_bands").notNull().$type<ResultBand[]>().default([]),
   active: boolean("active").notNull().default(true),
+  // ---- SEO ----
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  keywords: jsonb("keywords").$type<string[]>().default([]),
+  // Temas mais pesquisados que embasaram a geração (Google/PAA etc.)
+  sourceTopics: jsonb("source_topics").$type<string[]>().default([]),
+  aiGenerated: boolean("ai_generated").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
