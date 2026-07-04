@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useToast } from "@/hooks/use-toast";
+import { waLink } from "@/lib/utils";
 import {
   Loader2,
   RefreshCw,
@@ -116,11 +117,11 @@ export default function Leads() {
     }
   }
 
-  function waLink(lead: Lead) {
-    const num = lead.phone.replace(/\D/g, "");
-    const withCc = num.length <= 11 ? `55${num}` : num;
-    const msg = encodeURIComponent(`Olá ${lead.name.split(" ")[0]}, aqui é da clínica. Vi que você respondeu nosso quiz — posso te ajudar a agendar uma avaliação?`);
-    return `https://wa.me/${withCc}?text=${msg}`;
+  function leadWa(lead: Lead) {
+    return waLink(
+      lead.phone,
+      `Olá ${lead.name.split(" ")[0]}, aqui é da clínica. Vi que você respondeu nosso quiz — posso te ajudar a agendar uma avaliação?`,
+    );
   }
 
   const funnelCards = useMemo(() => {
@@ -243,7 +244,7 @@ export default function Leads() {
                     </td>
                     <td className="px-4 py-3">
                       <a
-                        href={waLink(lead)}
+                        href={leadWa(lead)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useToast } from "@/hooks/use-toast";
+import { waLink } from "@/lib/utils";
 import {
   Loader2,
   RefreshCw,
@@ -80,10 +81,8 @@ export default function Followups() {
     }
   }
 
-  function waLink(f: Followup) {
-    const num = f.leadPhone.replace(/\D/g, "");
-    const withCc = num.length <= 11 ? `55${num}` : num;
-    return `https://wa.me/${withCc}?text=${encodeURIComponent(f.message)}`;
+  function followupWa(f: Followup) {
+    return waLink(f.leadPhone, f.message);
   }
 
   return (
@@ -171,7 +170,7 @@ export default function Followups() {
 
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <a
-                      href={waLink(f)}
+                      href={followupWa(f)}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => resolve(f, "done")}

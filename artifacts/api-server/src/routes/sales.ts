@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import {
   db,
+  usersTable,
   quizzesTable,
   leadsTable,
   leadEventsTable,
@@ -65,12 +66,22 @@ const router = Router();
 
 // --- helpers ---------------------------------------------------------------
 
-function requireAuth(req: Request, res: Response): boolean {
-  if (!req.user?.email) {
+/**
+ * Resolve o id do usuário logado (vibe_users.id) para escopo por dono.
+ * Responde 401/403 e retorna null se não autenticado / sem cadastro.
+ */
+async function currentUserId(req: Request, res: Response): Promise<number | null> {
+  const email = req.user?.email;
+  if (!email) {
     res.status(401).json({ error: "Não autenticado" });
-    return false;
+    return null;
   }
-  return true;
+  const [u] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!u) {
+    res.status(403).json({ error: "Usuário sem cadastro" });
+    return null;
+  }
+  return u.id;
 }
 
 /** Lê e valida um id numérico de rota; responde 400 e retorna null se inválido. */
@@ -215,6 +226,7 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
   const [lead] = await db
     .insert(leadsTable)
     .values({
+      ownerId: quiz.ownerId,
       quizId: quiz.id,
       name: name.trim(),
       phone: phone.trim(),
@@ -258,10 +270,11 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
 // ---- Leads ----------------------------------------------------------------
 
 router.get("/leads", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
 
   const { status, temperature } = req.query as { status?: string; temperature?: string };
-  const conditions = [];
+  const conditions = [eq(leadsTable.ownerId, uid)];
   if (status && (LEAD_STATUSES as readonly string[]).includes(status)) {
     conditions.push(eq(leadsTable.status, status));
   }
@@ -272,7 +285,7 @@ router.get("/leads", async (req: Request, res: Response): Promise<void> => {
   const rows = await db
     .select()
     .from(leadsTable)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(leadsTable.createdAt))
     .limit(500);
 
@@ -280,10 +293,15 @@ router.get("/leads", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/leads/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
-  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id)).limit(1);
+  const [lead] = await db
+    .select()
+    .from(leadsTable)
+    .where(and(eq(leadsTable.id, id), eq(leadsTable.ownerId, uid)))
+    .limit(1);
   if (!lead) {
     res.status(404).json({ error: "Lead não encontrado" });
     return;
@@ -297,7 +315,8 @@ router.get("/leads/:id", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
   const { status, notes, lostReason, consciousness } = req.body as {
@@ -307,7 +326,11 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
     consciousness?: number;
   };
 
-  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, id)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(leadsTable)
+    .where(and(eq(leadsTable.id, id), eq(leadsTable.ownerId, uid)))
+    .limit(1);
   if (!existing) {
     res.status(404).json({ error: "Lead não encontrado" });
     return;
@@ -350,24 +373,16 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
 // ---- Stats (funil) --------------------------------------------------------
 
 router.get("/stats", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const own = eq(leadsTable.ownerId, uid);
 
-  const byStatus = await db
-    .select({ status: leadsTable.status, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.status);
-
-  const byTemperature = await db
-    .select({ temperature: leadsTable.temperature, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.temperature);
-
-  const bySpecialty = await db
-    .select({ specialty: leadsTable.specialty, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.specialty);
-
-  const [total] = await db.select({ total: count() }).from(leadsTable);
+  const [byStatus, byTemperature, bySpecialty, [total]] = await Promise.all([
+    db.select({ status: leadsTable.status, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.status),
+    db.select({ temperature: leadsTable.temperature, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.temperature),
+    db.select({ specialty: leadsTable.specialty, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.specialty),
+    db.select({ total: count() }).from(leadsTable).where(own),
+  ]);
 
   const statusMap: Record<string, number> = {};
   for (const s of LEAD_STATUSES) statusMap[s] = 0;
@@ -392,76 +407,67 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
 // ---- KPIs (dashboard completo) --------------------------------------------
 
 router.get("/kpis", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const own = eq(leadsTable.ownerId, uid);
+  const notNullRef = sql`${leadsTable.referredByCode} IS NOT NULL`;
 
-  const [total] = await db.select({ total: count() }).from(leadsTable);
+  // Todas as queries são independentes → rodam em paralelo
+  const [
+    [total],
+    byStatus,
+    byTemperature,
+    bySpecialty,
+    bySource,
+    timeline,
+    topQuizzes,
+    [refLeads],
+    [refWon],
+    [activeCodes],
+    fuByStatus,
+    [overdue],
+  ] = await Promise.all([
+    db.select({ total: count() }).from(leadsTable).where(own),
+    db.select({ status: leadsTable.status, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.status),
+    db.select({ temperature: leadsTable.temperature, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.temperature),
+    db.select({ specialty: leadsTable.specialty, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.specialty),
+    db.select({ source: leadsTable.source, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.source),
+    db.execute<{ day: string; total: string }>(
+      sql`SELECT DATE_TRUNC('day', created_at)::date AS day, COUNT(*) AS total
+          FROM vibe_leads
+          WHERE created_at >= NOW() - INTERVAL '30 days' AND owner_id = ${uid}
+          GROUP BY 1 ORDER BY 1`,
+    ),
+    db
+      .select({ title: quizzesTable.title, slug: quizzesTable.slug, total: count(leadsTable.id) })
+      .from(quizzesTable)
+      .leftJoin(leadsTable, eq(leadsTable.quizId, quizzesTable.id))
+      .where(eq(quizzesTable.ownerId, uid))
+      .groupBy(quizzesTable.id, quizzesTable.title, quizzesTable.slug)
+      .orderBy(desc(count(leadsTable.id)))
+      .limit(8),
+    db.select({ total: count() }).from(leadsTable).where(and(own, notNullRef)),
+    db.select({ total: count() }).from(leadsTable).where(and(own, notNullRef, eq(leadsTable.status, "fechado"))),
+    db.select({ total: count() }).from(referralsTable).where(and(eq(referralsTable.ownerId, uid), eq(referralsTable.active, true))),
+    db
+      .select({ status: followupsTable.status, total: count() })
+      .from(followupsTable)
+      .innerJoin(leadsTable, eq(followupsTable.leadId, leadsTable.id))
+      .where(own)
+      .groupBy(followupsTable.status),
+    db
+      .select({ total: count() })
+      .from(followupsTable)
+      .innerJoin(leadsTable, eq(followupsTable.leadId, leadsTable.id))
+      .where(and(own, eq(followupsTable.status, "pending"), lt(followupsTable.dueAt, new Date()))),
+  ]);
+
   const totalLeads = Number(total.total);
-
-  const byStatus = await db
-    .select({ status: leadsTable.status, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.status);
   const statusMap: Record<string, number> = {};
   for (const s of LEAD_STATUSES) statusMap[s] = 0;
   for (const r of byStatus) statusMap[r.status] = Number(r.total);
-
-  const byTemperature = await db
-    .select({ temperature: leadsTable.temperature, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.temperature);
-
-  const bySpecialty = await db
-    .select({ specialty: leadsTable.specialty, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.specialty);
-
-  const bySource = await db
-    .select({ source: leadsTable.source, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.source);
-
-  // Timeline: leads por dia nos últimos 30 dias
-  const timeline = await db.execute<{ day: string; total: string }>(
-    sql`SELECT DATE_TRUNC('day', created_at)::date AS day, COUNT(*) AS total
-        FROM vibe_leads
-        WHERE created_at >= NOW() - INTERVAL '30 days'
-        GROUP BY 1 ORDER BY 1`,
-  );
-
-  // Top quizzes por leads captados
-  const topQuizzes = await db
-    .select({ title: quizzesTable.title, slug: quizzesTable.slug, total: count(leadsTable.id) })
-    .from(quizzesTable)
-    .leftJoin(leadsTable, eq(leadsTable.quizId, quizzesTable.id))
-    .groupBy(quizzesTable.id, quizzesTable.title, quizzesTable.slug)
-    .orderBy(desc(count(leadsTable.id)))
-    .limit(8);
-
-  // Indicação: leads e conversões vindos de código de indicação
-  const [refLeads] = await db
-    .select({ total: count() })
-    .from(leadsTable)
-    .where(sql`${leadsTable.referredByCode} IS NOT NULL`);
-  const [refWon] = await db
-    .select({ total: count() })
-    .from(leadsTable)
-    .where(and(sql`${leadsTable.referredByCode} IS NOT NULL`, eq(leadsTable.status, "fechado")));
-  const [activeCodes] = await db
-    .select({ total: count() })
-    .from(referralsTable)
-    .where(eq(referralsTable.active, true));
-
-  // Follow-ups: adesão
-  const fuByStatus = await db
-    .select({ status: followupsTable.status, total: count() })
-    .from(followupsTable)
-    .groupBy(followupsTable.status);
   const fuMap: Record<string, number> = {};
   for (const r of fuByStatus) fuMap[r.status] = Number(r.total);
-  const [overdue] = await db
-    .select({ total: count() })
-    .from(followupsTable)
-    .where(and(eq(followupsTable.status, "pending"), lt(followupsTable.dueAt, new Date())));
 
   const agendados = statusMap["agendado"] + statusMap["compareceu"] + statusMap["fechado"];
   const fechados = statusMap["fechado"];
@@ -504,13 +510,19 @@ router.get("/kpis", async (req: Request, res: Response): Promise<void> => {
 // ---- Quizzes --------------------------------------------------------------
 
 router.get("/quizzes", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
-  const rows = await db.select().from(quizzesTable).orderBy(desc(quizzesTable.createdAt));
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const rows = await db
+    .select()
+    .from(quizzesTable)
+    .where(eq(quizzesTable.ownerId, uid))
+    .orderBy(desc(quizzesTable.createdAt));
 
-  // anexa contagem de leads por quiz
+  // anexa contagem de leads por quiz (só deste dono)
   const counts = await db
     .select({ quizId: leadsTable.quizId, total: count() })
     .from(leadsTable)
+    .where(eq(leadsTable.ownerId, uid))
     .groupBy(leadsTable.quizId);
   const countMap = new Map(counts.map((c) => [c.quizId, Number(c.total)]));
 
@@ -518,10 +530,15 @@ router.get("/quizzes", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/quizzes/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
-  const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, id)).limit(1);
+  const [quiz] = await db
+    .select()
+    .from(quizzesTable)
+    .where(and(eq(quizzesTable.id, id), eq(quizzesTable.ownerId, uid)))
+    .limit(1);
   if (!quiz) {
     res.status(404).json({ error: "Quiz não encontrado" });
     return;
@@ -530,7 +547,8 @@ router.get("/quizzes/:id", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const { slug, title, specialty, segment, description, whatsappNumber, questions, resultBands } =
     req.body as Partial<typeof quizzesTable.$inferInsert>;
 
@@ -553,6 +571,7 @@ router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
     const [created] = await db
       .insert(quizzesTable)
       .values({
+        ownerId: uid,
         slug,
         title,
         specialty: specialty ?? "ortopedia",
@@ -575,7 +594,8 @@ router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
   const body = req.body as Partial<typeof quizzesTable.$inferInsert>;
@@ -587,7 +607,11 @@ router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> 
     res.status(400).json({ error: "Nada para atualizar" });
     return;
   }
-  const [updated] = await db.update(quizzesTable).set(allowed).where(eq(quizzesTable.id, id)).returning();
+  const [updated] = await db
+    .update(quizzesTable)
+    .set(allowed)
+    .where(and(eq(quizzesTable.id, id), eq(quizzesTable.ownerId, uid)))
+    .returning();
   if (!updated) {
     res.status(404).json({ error: "Quiz não encontrado" });
     return;
@@ -598,7 +622,8 @@ router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> 
 // Gera automaticamente um quiz por tema, embasado nos temas mais pesquisados
 // (Google/People Also Ask) e otimizado para SEO, via IA.
 router.post("/quizzes/generate", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const { theme, whatsappNumber } = req.body as { theme?: string; whatsappNumber?: string };
 
   if (!theme || !isTheme(theme)) {
@@ -630,6 +655,7 @@ router.post("/quizzes/generate", async (req: Request, res: Response): Promise<vo
     const [created] = await db
       .insert(quizzesTable)
       .values({
+        ownerId: uid,
         slug,
         title: generated.title,
         specialty: theme,
@@ -662,16 +688,35 @@ router.post("/quizzes/generate", async (req: Request, res: Response): Promise<vo
 
 // Cria os quizzes padrão do playbook (ortopedia) se ainda não existirem
 router.post("/quizzes/seed", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const { whatsappNumber } = req.body as { whatsappNumber?: string };
 
-  const existing = await db.select({ slug: quizzesTable.slug }).from(quizzesTable);
-  const existingSlugs = new Set(existing.map((q) => q.slug));
+  // Quais slugs padrão este dono já tem
+  const mine = await db
+    .select({ slug: quizzesTable.slug })
+    .from(quizzesTable)
+    .where(eq(quizzesTable.ownerId, uid));
+  const mySlugs = new Set(mine.map((q) => q.slug));
+  // Slugs globalmente ocupados (slug é único no sistema — URL pública)
+  const all = await db.select({ slug: quizzesTable.slug }).from(quizzesTable);
+  const takenSlugs = new Set(all.map((q) => q.slug));
 
-  const toCreate = DEFAULT_QUIZZES.filter((q) => !existingSlugs.has(q.slug)).map((q) => ({
-    ...q,
-    whatsappNumber: whatsappNumber?.replace(/\D/g, "") || q.whatsappNumber,
-  }));
+  const toCreate = DEFAULT_QUIZZES
+    // pula os que este dono já tem (por slug base ou já sufixado)
+    .filter((q) => !mySlugs.has(q.slug) && !mySlugs.has(`${q.slug}-u${uid}`))
+    .map((q) => {
+      // se o slug base estiver ocupado por outra clínica, sufixa com o dono
+      const slug = takenSlugs.has(q.slug) ? `${q.slug}-u${uid}` : q.slug;
+      return {
+        ...q,
+        slug,
+        ownerId: uid,
+        whatsappNumber: whatsappNumber?.replace(/\D/g, "") || q.whatsappNumber,
+      };
+    })
+    // evita colisão entre os próprios sufixos já ocupados
+    .filter((q) => !takenSlugs.has(q.slug));
 
   if (toCreate.length === 0) {
     res.json({ created: 0, message: "Quizzes padrão já existem" });
@@ -708,19 +753,19 @@ router.get("/public/referral/:code", async (req: Request, res: Response): Promis
 });
 
 router.get("/referrals", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
-  const referrals = await db.select().from(referralsTable).orderBy(desc(referralsTable.createdAt));
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const own = eq(leadsTable.ownerId, uid);
 
-  // leads gerados e conversões por código
-  const generated = await db
-    .select({ code: leadsTable.referredByCode, total: count() })
-    .from(leadsTable)
-    .groupBy(leadsTable.referredByCode);
-  const won = await db
-    .select({ code: leadsTable.referredByCode, total: count() })
-    .from(leadsTable)
-    .where(eq(leadsTable.status, "fechado"))
-    .groupBy(leadsTable.referredByCode);
+  const [referrals, generated, won] = await Promise.all([
+    db.select().from(referralsTable).where(eq(referralsTable.ownerId, uid)).orderBy(desc(referralsTable.createdAt)),
+    db.select({ code: leadsTable.referredByCode, total: count() }).from(leadsTable).where(own).groupBy(leadsTable.referredByCode),
+    db
+      .select({ code: leadsTable.referredByCode, total: count() })
+      .from(leadsTable)
+      .where(and(own, eq(leadsTable.status, "fechado")))
+      .groupBy(leadsTable.referredByCode),
+  ]);
 
   const genMap = new Map(generated.map((g) => [g.code, Number(g.total)]));
   const wonMap = new Map(won.map((w) => [w.code, Number(w.total)]));
@@ -735,7 +780,8 @@ router.get("/referrals", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.post("/referrals", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const { patientName, patientPhone, specialty, quizSlug, rewardNote } = req.body as {
     patientName?: string;
     patientPhone?: string;
@@ -751,6 +797,7 @@ router.post("/referrals", async (req: Request, res: Response): Promise<void> => 
   const [created] = await db
     .insert(referralsTable)
     .values({
+      ownerId: uid,
       code,
       patientName: patientName.trim(),
       patientPhone: patientPhone?.trim() || null,
@@ -763,7 +810,8 @@ router.post("/referrals", async (req: Request, res: Response): Promise<void> => 
 });
 
 router.patch("/referrals/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
   const body = req.body as Partial<typeof referralsTable.$inferInsert>;
@@ -775,7 +823,11 @@ router.patch("/referrals/:id", async (req: Request, res: Response): Promise<void
     res.status(400).json({ error: "Nada para atualizar" });
     return;
   }
-  const [updated] = await db.update(referralsTable).set(allowed).where(eq(referralsTable.id, id)).returning();
+  const [updated] = await db
+    .update(referralsTable)
+    .set(allowed)
+    .where(and(eq(referralsTable.id, id), eq(referralsTable.ownerId, uid)))
+    .returning();
   if (!updated) {
     res.status(404).json({ error: "Indicação não encontrada" });
     return;
@@ -787,10 +839,11 @@ router.patch("/referrals/:id", async (req: Request, res: Response): Promise<void
 
 // Fila de retornos. scope=due (vencidos + de hoje) | upcoming | all
 router.get("/followups", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const scope = String(req.query.scope ?? "due");
 
-  const conditions = [eq(followupsTable.status, "pending")];
+  const conditions = [eq(followupsTable.status, "pending"), eq(leadsTable.ownerId, uid)];
   if (scope === "due") {
     // vence até o fim do dia de hoje
     const endOfToday = new Date();
@@ -823,12 +876,24 @@ router.get("/followups", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.patch("/followups/:id", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
   const id = parseId(req, res);
   if (id === null) return;
   const { status } = req.body as { status?: string };
   if (!status || !(FOLLOWUP_STATUSES as readonly string[]).includes(status)) {
     res.status(400).json({ error: "status inválido" });
+    return;
+  }
+  // confirma que o follow-up é de um lead deste dono
+  const [owned] = await db
+    .select({ id: followupsTable.id })
+    .from(followupsTable)
+    .innerJoin(leadsTable, eq(followupsTable.leadId, leadsTable.id))
+    .where(and(eq(followupsTable.id, id), eq(leadsTable.ownerId, uid)))
+    .limit(1);
+  if (!owned) {
+    res.status(404).json({ error: "Follow-up não encontrado" });
     return;
   }
   const completedAt = status === "done" || status === "skipped" ? new Date() : null;
