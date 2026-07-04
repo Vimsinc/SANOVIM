@@ -84,7 +84,9 @@ export async function setupStaticServing(app: Express): Promise<void> {
       res.type("html").send(html);
     });
 
-    app.get("*", (_req: Request, res: Response) => {
+    // Catch-all do SPA. Express 5 (path-to-regexp v8) não aceita mais "*" como
+    // string; usamos um regex que casa qualquer caminho.
+    app.get(/.*/, (_req: Request, res: Response) => {
       res.sendFile(path.join(staticDir, "index.html"));
     });
   }
