@@ -1,0 +1,219 @@
+<title>Auditoria da Plataforma de Vendas · SANOVIM</title>
+<style>
+  :root{
+    --bg:#F7F9F9;--surface:#FFFFFF;--surface-2:#EEF3F2;--ink:#10201F;--ink-soft:#3A4B4A;
+    --muted:#5E706E;--line:#DBE4E2;--accent:#0E7C7B;--accent-deep:#0A4F52;--accent-soft:#E1F0EE;
+    --energy:#E8743B;--energy-soft:#FBE7DB;--gold:#B8863B;
+    --good:#2E8B6F;--good-soft:#E1F0EA;--warn:#C4622D;--warn-soft:#FBE7DB;--crit:#B23A48;--crit-soft:#F6E1E4;
+    --shadow:0 1px 2px rgba(16,32,31,.04),0 8px 24px -12px rgba(16,32,31,.14);
+    --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--maxw:1000px;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0B1615;--surface:#10201F;--surface-2:#16302E;--ink:#EAF2F0;--ink-soft:#C3D2CF;--muted:#8FA5A2;
+    --line:#24403D;--accent:#37B0A8;--accent-deep:#6FD3CB;--accent-soft:#12312F;--energy:#F08A57;--energy-soft:#33241C;
+    --gold:#D3A85E;--good:#52BE9B;--good-soft:#12312A;--warn:#E08A54;--warn-soft:#33241C;--crit:#E0707E;--crit-soft:#3A1E22;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+  }}
+  :root[data-theme="light"]{--bg:#F7F9F9;--surface:#FFFFFF;--surface-2:#EEF3F2;--ink:#10201F;--ink-soft:#3A4B4A;--muted:#5E706E;--line:#DBE4E2;--accent:#0E7C7B;--accent-deep:#0A4F52;--accent-soft:#E1F0EE;--energy:#E8743B;--energy-soft:#FBE7DB;--good:#2E8B6F;--good-soft:#E1F0EA;--warn:#C4622D;--warn-soft:#FBE7DB;--crit:#B23A48;--crit-soft:#F6E1E4;}
+  :root[data-theme="dark"]{--bg:#0B1615;--surface:#10201F;--surface-2:#16302E;--ink:#EAF2F0;--ink-soft:#C3D2CF;--muted:#8FA5A2;--line:#24403D;--accent:#37B0A8;--accent-deep:#6FD3CB;--accent-soft:#12312F;--energy:#F08A57;--energy-soft:#33241C;--good:#52BE9B;--good-soft:#12312A;--warn:#E08A54;--warn-soft:#33241C;--crit:#E0707E;--crit-soft:#3A1E22;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.15;text-wrap:balance}
+  h2{font-size:clamp(1.4rem,3vw,1.9rem);margin:0 0 .3em;letter-spacing:-.01em}
+  h3{font-size:1.15rem;margin:1.6em 0 .5em;font-family:var(--sans);font-weight:700}
+  p{margin:0 0 1em;color:var(--ink-soft)}
+  strong{color:var(--ink);font-weight:650}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-2);padding:.1rem .4rem;border-radius:5px;color:var(--accent-deep)}
+  .eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 .7em;display:flex;align-items:center;gap:.6em}
+  .eyebrow::before{content:"";width:24px;height:2px;background:var(--accent);display:inline-block}
+
+  header.top{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .top-in{display:flex;align-items:center;justify-content:space-between;max-width:var(--maxw);margin:0 auto;padding:11px 22px}
+  .brand{display:flex;align-items:center;gap:.55rem;font-family:var(--serif);font-weight:600}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px var(--good-soft)}
+  .theme-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);width:33px;height:33px;border-radius:9px;cursor:pointer}
+
+  .hero{padding:clamp(2.4rem,6vw,4rem) 0 1.5rem}
+  .tag{display:inline-flex;gap:.5rem;background:var(--accent-soft);color:var(--accent-deep);font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:.32rem .75rem;border-radius:99px;text-transform:uppercase}
+  .hero h1{font-family:var(--serif);font-size:clamp(1.9rem,5vw,3rem);letter-spacing:-.02em;margin:1rem 0 .4rem}
+  .hero .lede{font-size:1.08rem;color:var(--ink-soft);max-width:60ch}
+
+  section{padding:2rem 0;border-top:1px solid var(--line)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.3rem 1.4rem;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:1rem}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+
+  .verdict{display:flex;gap:1rem;align-items:center;background:linear-gradient(100deg,var(--good-soft),var(--surface) 75%);border:1px solid color-mix(in srgb,var(--good) 30%,var(--line));border-radius:16px;padding:1.3rem 1.5rem;margin-top:1.4rem}
+  .verdict .score{font-family:var(--serif);font-size:2.6rem;color:var(--good);line-height:1;font-variant-numeric:tabular-nums}
+  .verdict .lbl{font-size:.95rem;color:var(--ink-soft)}
+
+  .scorecard{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .sc{background:var(--surface);padding:1rem 1.1rem}
+  .sc .n{font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .sc .r{font-family:var(--serif);font-size:1.5rem;margin-top:.2rem}
+  .sc .r.a{color:var(--good)} .sc .r.b{color:var(--accent)} .sc .r.c{color:var(--warn)}
+
+  .sev{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:.18rem .5rem;border-radius:6px;white-space:nowrap}
+  .sev.crit{background:var(--crit-soft);color:var(--crit)} .sev.high{background:var(--warn-soft);color:var(--warn)}
+  .sev.med{background:var(--accent-soft);color:var(--accent-deep)} .sev.low{background:var(--surface-2);color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.7rem;font-weight:700;padding:.2rem .55rem;border-radius:99px}
+  .pill.fixed{background:var(--good-soft);color:var(--good)} .pill.rec{background:var(--warn-soft);color:var(--warn)}
+
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;margin:1rem 0}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:640px}
+  th,td{text-align:left;padding:.7rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--surface-2);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
+  tbody tr:last-child td{border-bottom:none}
+  td b{color:var(--ink)}
+  ul.clean{margin:.2rem 0 0;padding-left:1.1em}
+  ul.clean li{margin-bottom:.4em;color:var(--ink-soft)}
+  ul.clean li::marker{color:var(--accent)}
+
+  .rec{display:grid;grid-template-columns:auto 1fr;gap:.9rem;padding:.9rem 0;border-bottom:1px solid var(--line)}
+  .rec:last-child{border-bottom:none}
+  .prio{font-family:var(--serif);font-weight:700;font-size:.85rem;padding:.15rem .55rem;border-radius:7px;height:fit-content;white-space:nowrap}
+  .prio.p0{background:var(--crit-soft);color:var(--crit)} .prio.p1{background:var(--warn-soft);color:var(--warn)} .prio.p2{background:var(--surface-2);color:var(--muted)}
+  .rec b{display:block;margin-bottom:.15rem}
+  .rec p{margin:0;font-size:.9rem}
+
+  footer{padding:2.5rem 0 4rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+  @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="dot"></span> SANOVIM · Auditoria</div>
+    <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">◐</button>
+  </div>
+</header>
+
+<main>
+<section class="hero" style="border-top:none">
+  <div class="wrap">
+    <span class="tag">Auditoria completa · Plataforma de vendas</span>
+    <h1>Revisão de todas as funcionalidades</h1>
+    <p class="lede">Auditoria por 5 frentes (backend, frontend, dados &amp; multi-tenancy, IA/SEO/integrações, testes &amp; operação), com validação ao vivo contra um Postgres real. Este relatório lista o que foi corrigido nesta rodada e o que fica como recomendação priorizada.</p>
+    <div class="verdict">
+      <div class="score">B+</div>
+      <div>
+        <strong>Saúde geral: sólida, pronta para piloto.</strong>
+        <div class="lbl">Lógica de negócio correta e bem testada; isolamento multi-tenant verificado. As lacunas restantes são de <em>endurecimento</em> (rate limit, CORS, LGPD) — importantes antes de escala/abertura pública, não bloqueiam o piloto de uma clínica.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Scorecard por dimensão</p>
+    <div class="scorecard">
+      <div class="sc"><div class="n">Correção</div><div class="r a">A−</div></div>
+      <div class="sc"><div class="n">Multi-tenancy</div><div class="r a">A</div></div>
+      <div class="sc"><div class="n">Segurança</div><div class="r c">B−</div></div>
+      <div class="sc"><div class="n">Dados</div><div class="r b">B</div></div>
+      <div class="sc"><div class="n">Frontend</div><div class="r b">B+</div></div>
+      <div class="sc"><div class="n">Operação</div><div class="r c">B−</div></div>
+      <div class="sc"><div class="n">Testes/CI</div><div class="r a">A−</div></div>
+    </div>
+    <p style="margin-top:1rem;font-size:.9rem;color:var(--muted)">Notas após as correções desta rodada. Segurança e Operação sobem para A− ao endereçar as recomendações P0/P1 abaixo.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Corrigido nesta rodada</p>
+    <h2>19 achados resolvidos <span class="pill fixed">✓ merge</span></h2>
+    <p>Achados de alto valor e baixo risco — todos com typecheck, build e testes passando.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Área</th><th>Sev.</th><th>Achado &amp; correção</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td><span class="sev high">Alta</span></td><td><b>Quiz sem validação quebrava o submit público (500/NaN).</b> Validação zod de perguntas/faixas no POST/PATCH (mín. 1 pergunta, ≥2 opções, pontos numéricos).</td></tr>
+          <tr><td>Backend</td><td><span class="sev high">Alta</span></td><td><b>Submit sem transação → lead órfão.</b> Lead + evento + cadência num único <code>db.transaction</code>.</td></tr>
+          <tr><td>Multi-tenancy</td><td><span class="sev med">Média</span></td><td><b>Atribuição de indicação cross-tenant.</b> <code>?ref</code> só é atribuído se o código pertencer ao dono do quiz.</td></tr>
+          <tr><td>IA/Integr.</td><td><span class="sev high">Alta</span></td><td><b>Fetch externos sem timeout (hang trava a geração).</b> <code>AbortSignal.timeout</code> em Serper/Trends/Instagram + 45s no Anthropic.</td></tr>
+          <tr><td>IA/Dados</td><td><span class="sev med">Média</span></td><td><b>Instagram devolvia mock como sinal real.</b> Sem token → sinais vazios (não fabricados).</td></tr>
+          <tr><td>Frontend</td><td><span class="sev crit">Crítica*</span></td><td><b>Links públicos/indicação ignoravam o BASE_URL</b> (404 sob sub-path). Helper <code>quizPublicUrl</code> respeita o base. <em>*latente — só quebra fora da raiz.</em></td></tr>
+          <tr><td>Frontend</td><td><span class="sev high">Alta</span></td><td><b>KPIs em spinner infinito no erro.</b> Estado de erro + "tentar novamente".</td></tr>
+          <tr><td>Frontend</td><td><span class="sev high">Alta</span></td><td><b>Mutações sem tratamento de falha.</b> try/catch + toast em status de lead, toggles e follow-up.</td></tr>
+          <tr><td>Frontend</td><td><span class="sev med">Média</span></td><td><b>Quiz público virava "não encontrado" em falha transitória.</b> Distingue 404 de erro de rede (com retry). Cópia com fallback.</td></tr>
+          <tr><td>Operação</td><td><span class="sev med">Média</span></td><td><b>Sem middleware de erro / shutdown / pool.</b> Erro JSON (sem stack), SIGTERM gracioso, pool dimensionado, body 256kb.</td></tr>
+          <tr><td>SEO</td><td><span class="sev med">Média</span></td><td><b>readFileSync por request + Host header no canonical.</b> Cache do index.html + <code>PUBLIC_BASE_URL</code>.</td></tr>
+          <tr><td>Backend</td><td><span class="sev low">Baixa</span></td><td><b>23505 virava 500</b> no seed/generate. Agora 409. Quiz gerado sem perguntas é rejeitado.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Backlog priorizado</p>
+    <h2>Recomendações <span class="pill rec">a implementar</span></h2>
+    <p>Não bloqueiam o piloto de uma clínica, mas devem entrar antes de escalar ou abrir múltiplas clínicas / tráfego público alto.</p>
+
+    <h3 style="color:var(--crit)">P0 — antes de escalar / abrir ao público</h3>
+    <div class="rec"><span class="prio p0">P0</span><div><b>Rate limiting / anti-abuso</b><p>Endpoints públicos (<code>submit</code>, <code>referral/click</code>) e a geração por IA (<code>/quizzes/generate</code>) não têm limite. Risco: flood de leads, spam de cadência e custo descontrolado de Anthropic/Serper. → <code>express-rate-limit</code> por IP/usuário.</p></div></div>
+    <div class="rec"><span class="prio p0">P0</span><div><b>Backfill de <code>ownerId</code></b><p>Após o deploy, dados existentes ficam com <code>owner_id</code> nulo → invisíveis no escopo. Se houver dados de produção, rodar um backfill definindo o dono antes de usar.</p></div></div>
+    <div class="rec"><span class="prio p0">P0</span><div><b>CORS por allowlist</b><p><code>origin:true + credentials:true</code> reflete qualquer origem (mitigado hoje por cookie SameSite=lax). Trocar por allowlist de origens conhecidas via env.</p></div></div>
+
+    <h3 style="color:var(--warn)">P1 — conformidade &amp; resiliência</h3>
+    <div class="rec"><span class="prio p1">P1</span><div><b>LGPD: exclusão &amp; exportação de dados do paciente</b><p>PII (nome/telefone/e-mail/respostas) fica armazenada indefinidamente, sem endpoint de exclusão/exportação. Adicionar <code>DELETE /leads/:id</code> (com cascade) e exportação, escopados por dono.</p></div></div>
+    <div class="rec"><span class="prio p1">P1</span><div><b>Migração sem travar produção</b><p><code>drizzle-kit push</code> cria índices com lock; numa tabela de leads grande, bloqueia inserções (captura) durante o deploy. Aplicar índices com <code>CREATE INDEX CONCURRENTLY</code> fora do push, ou em janela.</p></div></div>
+    <div class="rec"><span class="prio p1">P1</span><div><b>Readiness check com DB</b><p><code>/healthz</code> é estático. Adicionar <code>/readyz</code> com <code>SELECT 1</code> para o orquestrador não rotear tráfego a uma instância sem banco.</p></div></div>
+    <div class="rec"><span class="prio p1">P1</span><div><b>Observabilidade da geração por IA</b><p>Falhas de IA só viram log + 500 genérico. Métricas de taxa de falha/latência/custo e alerta quando a chave expira ou o formato muda.</p></div></div>
+
+    <h3 style="color:var(--muted)">P2 — qualidade &amp; profundidade de testes</h3>
+    <div class="rec"><span class="prio p2">P2</span><div><b>Integridade referencial (FK + cascade)</b><p>Sem FKs; deletar um lead orfaniza eventos/follow-ups. Adicionar constraints e <code>ON DELETE CASCADE</code>.</p></div></div>
+    <div class="rec"><span class="prio p2">P2</span><div><b>Teste do caminho de geração por IA</b><p>Só o ramo de erro é testado. Injetar um mock da IA no CI para exercitar o 201, o <code>sanitize</code> e a colisão de slug.</p></div></div>
+    <div class="rec"><span class="prio p2">P2</span><div><b>Testes de frontend</b><p>Zero testes no front. Um Vitest para o fluxo de submit + um Playwright end-to-end de <code>/q/:slug</code>.</p></div></div>
+    <div class="rec"><span class="prio p2">P2</span><div><b>CHECK em enums no banco</b><p><code>status/temperature/specialty/level</code> são texto livre. Constraints impedem valores fora do domínio.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">O que está sólido</p>
+    <h2>Pontos fortes confirmados</h2>
+    <div class="grid g2">
+      <div class="card"><h3 style="margin-top:0">Isolamento multi-tenant</h3><ul class="clean"><li>Os 19 handlers autenticados escopam por dono; leitura/escrita cross-tenant → 404 (verificado por teste).</li><li>Tabelas sem <code>ownerId</code> (eventos/follow-ups) só via lead do dono.</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Segurança de conteúdo</h3><ul class="clean"><li>JSON-LD escapa <code>&lt;/script&gt;</code> (sem breakout XSS); metas escapadas.</li><li>Slug restrito a <code>[a-z0-9-]</code>; saída da IA sanitizada defensivamente.</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Lógica de negócio</h3><ul class="clean"><li>Scoring com dedup por pergunta; pontos ocultos do público.</li><li>Cadência cancela em status terminal; nota não duplica.</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Testes &amp; CI</h3><ul class="clean"><li>62 asserções de integração contra Postgres real + smoke de produção.</li><li>CI com Postgres 16, lockfile congelado, Node/pnpm fixos.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Cobertura de testes</p>
+    <h2>O que o CI garante hoje</h2>
+    <div class="grid g3">
+      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">62</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">asserções de integração (2 suítes, Postgres real)</div></div>
+      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">1</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">smoke de produção (boot + rotas HTTP)</div></div>
+      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">3</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">typechecks (db + api + front) + 2 builds</div></div>
+    </div>
+    <p style="margin-top:1rem">Cada push/PR roda tudo isso automaticamente. A maior lacuna de cobertura restante: caminho de sucesso da <strong>geração por IA</strong> e <strong>testes de frontend</strong> (P2 acima).</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p style="color:var(--ink);font-family:var(--serif);font-size:1.1rem;margin-bottom:.3rem">Conclusão</p>
+    <p style="margin-bottom:1rem">A plataforma está <strong>correta, testada e isolada por clínica</strong> — pronta para o piloto de uma clínica. Antes de abrir ao público em escala ou a múltiplas clínicas, priorize os itens <strong>P0</strong> (rate limit, backfill de dono, CORS) e o <strong>P1 de LGPD</strong>.</p>
+    <p style="font-size:.8rem;color:var(--muted);margin:0">SANOVIM · Auditoria completa da plataforma de vendas. Achados de 5 frentes de análise + validação ao vivo (Postgres 16). Gerado como parte do ciclo de revisão contínua.</p>
+  </div>
+</footer>
+</main>
+
+<script>
+(function(){var root=document.documentElement,btn=document.getElementById('themeBtn');
+function apply(t){root.setAttribute('data-theme',t);try{localStorage.setItem('sv-theme',t)}catch(e){}}
+var s;try{s=localStorage.getItem('sv-theme')}catch(e){}if(s)apply(s);
+btn.addEventListener('click',function(){var c=root.getAttribute('data-theme');if(!c)c=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';apply(c==='dark'?'light':'dark')})})();
+</script>
