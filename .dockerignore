@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+*.log
+.env
+.env.*
+docs
+**/*.test.ts
+**/*.test.tsx
+scratchpad
