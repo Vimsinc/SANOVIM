@@ -13,6 +13,10 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 const app: Express = express();
 
+// Confia no primeiro proxy (Replit/infra) para que req.ip reflita o cliente
+// real — necessário para o rate limiting por IP funcionar corretamente.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -32,7 +36,25 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
+// CORS por allowlist. O SPA é servido na mesma origem (não precisa de CORS);
+// requisições sem Origin (same-origin, curl, apps nativos) são permitidas.
+// Origens cross-site só quando listadas em CORS_ORIGINS (separadas por vírgula).
+const corsAllowlist = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, cb) {
+      if (!origin || corsAllowlist.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      cb(null, false);
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true, limit: "256kb" }));
