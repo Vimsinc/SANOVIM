@@ -54,6 +54,18 @@ async function main() {
   ok("primeiras 3 submissões passam (200)", codes.slice(0, 3).every((c) => c === 200), codes);
   ok("submissões acima do limite → 429", codes.slice(3).some((c) => c === 429), codes);
 
+  // ---- Geração por IA (modo fake) — caminho de sucesso ----
+  console.log("\n[Geração por IA — fake]");
+  const g = await fetch(`${b}/quizzes/generate`, {
+    method: "POST",
+    headers: A,
+    body: JSON.stringify({ theme: "ortopedia", whatsappNumber: "5511999998888" }),
+  });
+  const gd = await g.json();
+  ok("POST /quizzes/generate → 201", g.status === 201, g.status);
+  ok("quiz gerado tem perguntas válidas", Array.isArray(gd.quiz?.questions) && gd.quiz.questions.length >= 1, gd.quiz?.questions?.length);
+  ok("quiz gerado marcado aiGenerated", gd.quiz?.aiGenerated === true, gd.quiz?.aiGenerated);
+
   console.log(`\n──────────────\nSUÍTE 3: ${passed} passaram, ${failed} falharam`);
   server.close();
   await new Promise((r) => setTimeout(r, 100));

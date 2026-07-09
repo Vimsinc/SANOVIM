@@ -48,6 +48,9 @@ jobs:
           pnpm --filter ./artifacts/api-server run typecheck
           pnpm --filter ./artifacts/sanovim run typecheck
 
+      - name: Frontend unit tests
+        run: pnpm --filter ./artifacts/sanovim run test
+
       - name: Build frontend
         run: pnpm --filter ./artifacts/sanovim run build
 

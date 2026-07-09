@@ -101,6 +101,30 @@ export async function generateQuizForTheme(
   signals: ThemeSignals,
 ): Promise<GeneratedQuiz> {
   const themeLabel = THEMES[theme].label;
+
+  // Modo de teste: gera um quiz canônico sem chamar a Anthropic (CI/local).
+  if (process.env.SALES_AI_FAKE === "1") {
+    return sanitize(
+      {
+        slug: `quiz-${theme}`,
+        title: `Avaliação — ${themeLabel}`,
+        description: "Responda algumas perguntas rápidas.",
+        questions: [
+          { id: "tempo", question: "Há quanto tempo?", options: [{ label: "recente", points: 1 }, { label: "há meses", points: 3 }] },
+          { id: "urg", question: "Urgência?", options: [{ label: "alta", points: 2, tag: theme }, { label: "baixa", points: 0 }] },
+        ],
+        resultBands: [
+          { min: 0, level: "frio", title: "Leve", message: "Acompanhe." },
+          { min: 4, level: "quente", title: "Avalie", message: "Recomendamos avaliação." },
+        ],
+        metaTitle: `Avaliação de ${themeLabel}`,
+        metaDescription: "Descubra o próximo passo.",
+        keywords: [themeLabel.toLowerCase()],
+      },
+      theme,
+    );
+  }
+
   const searchedBlock = signalsBlock(signals);
 
   const system = `Você é especialista em marketing de saúde e copywriting de conversão no Brasil.
