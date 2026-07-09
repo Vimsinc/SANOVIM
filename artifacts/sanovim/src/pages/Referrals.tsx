@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useToast } from "@/hooks/use-toast";
+import { quizPublicUrl, copyToClipboard } from "@/lib/utils";
 import {
   Loader2,
   Gift,
@@ -31,6 +32,7 @@ interface QuizLite {
   id: number;
   slug: string;
   title: string;
+  active: boolean;
 }
 
 export default function Referrals() {
@@ -102,15 +104,17 @@ export default function Referrals() {
   }
 
   function resolveSlug(r: Referral): string | null {
-    return r.quizSlug || quizzes[0]?.slug || null;
+    if (r.quizSlug) return r.quizSlug;
+    // preferir um quiz ATIVO como destino padrão
+    return quizzes.find((q) => q.active)?.slug ?? quizzes[0]?.slug ?? null;
   }
 
   function link(r: Referral) {
     const slug = resolveSlug(r) ?? "";
-    return `${window.location.origin}/q/${slug}?ref=${r.code}`;
+    return `${quizPublicUrl(slug)}?ref=${r.code}`;
   }
 
-  function copy(r: Referral) {
+  async function copy(r: Referral) {
     if (!resolveSlug(r)) {
       toast({
         title: "Crie um quiz primeiro",
@@ -119,20 +123,29 @@ export default function Referrals() {
       });
       return;
     }
-    navigator.clipboard.writeText(link(r));
-    setCopied(r.code);
-    setTimeout(() => setCopied(null), 1500);
-    toast({ title: "Link copiado", description: link(r) });
+    const ok = await copyToClipboard(link(r));
+    if (ok) {
+      setCopied(r.code);
+      setTimeout(() => setCopied(null), 1500);
+      toast({ title: "Link copiado", description: link(r) });
+    } else {
+      toast({ title: "Não foi possível copiar", description: link(r), variant: "destructive" });
+    }
   }
 
   async function toggle(r: Referral) {
-    const res = await fetch(`/api/sales/referrals/${r.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ active: !r.active }),
-    });
-    if (res.ok) setReferrals((prev) => prev.map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)));
+    try {
+      const res = await fetch(`/api/sales/referrals/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ active: !r.active }),
+      });
+      if (res.ok) setReferrals((prev) => prev.map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)));
+      else toast({ title: "Não foi possível alterar", variant: "destructive" });
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
+    }
   }
 
   return (

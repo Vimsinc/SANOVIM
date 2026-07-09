@@ -102,18 +102,22 @@ export default function Leads() {
   }, [filter, tempFilter]);
 
   async function updateStatus(lead: Lead, status: string) {
-    const res = await fetch(`/api/sales/leads/${lead.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
-      setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status } : l)));
-      toast({ title: "Status atualizado", description: `${lead.name} → ${STATUS_LABELS[status]}` });
-      load();
-    } else {
-      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status } : l)));
+        toast({ title: "Status atualizado", description: `${lead.name} → ${STATUS_LABELS[status]}` });
+        load();
+      } else {
+        toast({ title: "Erro ao atualizar", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
     }
   }
 

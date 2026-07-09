@@ -34,11 +34,21 @@ app.use(
 );
 app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "256kb" }));
+app.use(express.urlencoded({ extended: true, limit: "256kb" }));
 app.use(authMiddleware);
 
 app.use("/api", router);
+
+// Tratador de erro final: responde JSON e evita vazar stack trace ao cliente.
+app.use((err: unknown, req: Request, res: Response, _next: express.NextFunction) => {
+  req.log?.error({ err }, "unhandled route error");
+  if (res.headersSent) return;
+  const status = (err as { status?: number; statusCode?: number })?.status
+    ?? (err as { statusCode?: number })?.statusCode
+    ?? 500;
+  res.status(status >= 400 && status < 600 ? status : 500).json({ error: "Erro interno" });
+});
 
 export async function setupViteDevMiddleware(app: Express): Promise<void> {
   const { createServer } = await import("vite");
@@ -61,16 +71,23 @@ export async function setupStaticServing(app: Express): Promise<void> {
     // Precede o catch-all para que crawlers e prévias de link recebam o HTML certo.
     const { buildQuizHead } = await import("./lib/salesSeo");
     const indexPath = path.join(staticDir, "index.html");
+    // Lê o index.html uma vez (evita fs.readFileSync bloqueante a cada request).
+    let baseHtml: string | null = null;
+    try {
+      baseHtml = fs.readFileSync(indexPath, "utf-8");
+    } catch {
+      baseHtml = null;
+    }
+    // Origem canônica: prioriza PUBLIC_BASE_URL (evita Host header injection).
+    const publicBase = process.env.PUBLIC_BASE_URL?.replace(/\/+$/, "");
     app.get("/q/:slug", async (req: Request, res: Response, next) => {
-      let html: string;
-      try {
-        html = fs.readFileSync(indexPath, "utf-8");
-      } catch {
+      if (!baseHtml) {
         next();
         return;
       }
+      let html = baseHtml;
       try {
-        const origin = `${req.protocol}://${req.get("host")}`;
+        const origin = publicBase || `${req.protocol}://${req.get("host")}`;
         const seo = await buildQuizHead(String(req.params.slug), origin);
         if (seo) {
           // Substituições via função para não interpretar "$" como padrão de replace

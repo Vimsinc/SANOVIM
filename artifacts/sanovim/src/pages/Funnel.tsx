@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { TopBar } from "@/components/TopBar";
 import { useToast } from "@/hooks/use-toast";
+import { quizPublicUrl, copyToClipboard } from "@/lib/utils";
 import {
   Loader2,
   Copy,
@@ -135,26 +136,36 @@ export default function Funnel() {
   }
 
   async function toggleActive(quiz: Quiz) {
-    const res = await fetch(`/api/sales/quizzes/${quiz.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ active: !quiz.active }),
-    });
-    if (res.ok) {
-      setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? { ...q, active: !q.active } : q)));
+    try {
+      const res = await fetch(`/api/sales/quizzes/${quiz.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ active: !quiz.active }),
+      });
+      if (res.ok) {
+        setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? { ...q, active: !q.active } : q)));
+      } else {
+        toast({ title: "Não foi possível alterar o status", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
     }
   }
 
   function publicUrl(slug: string) {
-    return `${window.location.origin}/q/${slug}`;
+    return quizPublicUrl(slug);
   }
 
-  function copy(slug: string) {
-    navigator.clipboard.writeText(publicUrl(slug));
-    setCopied(slug);
-    setTimeout(() => setCopied(null), 1500);
-    toast({ title: "Link copiado", description: publicUrl(slug) });
+  async function copy(slug: string) {
+    const ok = await copyToClipboard(publicUrl(slug));
+    if (ok) {
+      setCopied(slug);
+      setTimeout(() => setCopied(null), 1500);
+      toast({ title: "Link copiado", description: publicUrl(slug) });
+    } else {
+      toast({ title: "Não foi possível copiar", description: publicUrl(slug), variant: "destructive" });
+    }
   }
 
   return (

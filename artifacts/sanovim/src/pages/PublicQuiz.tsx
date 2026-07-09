@@ -43,7 +43,7 @@ interface SubmitResult {
   whatsappUrl: string;
 }
 
-type Phase = "loading" | "notfound" | "intro" | "questions" | "contact" | "submitting" | "done";
+type Phase = "loading" | "notfound" | "loaderror" | "intro" | "questions" | "contact" | "submitting" | "done";
 
 export default function PublicQuiz() {
   const [, params] = useRoute("/q/:slug");
@@ -70,7 +70,13 @@ export default function PublicQuiz() {
   }, []);
 
   useEffect(() => {
+    loadQuiz();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  function loadQuiz() {
     if (!slug) return;
+    setPhase("loading");
     fetch(`/api/sales/public/quiz/${slug}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((data: PublicQuizData) => {
@@ -87,8 +93,11 @@ export default function PublicQuiz() {
         }
         if (data.keywords?.length) setMeta("keywords", data.keywords.join(", "));
       })
-      .catch(() => setPhase("notfound"));
-  }, [slug]);
+      .catch((e) => {
+        // 404 = quiz inexistente/desativado; qualquer outra falha = transitória (retry)
+        setPhase(e && typeof e === "object" && "status" in e && e.status === 404 ? "notfound" : "loaderror");
+      });
+  }
 
   function chooseOption(questionId: string, optionIndex: number) {
     setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
@@ -141,6 +150,23 @@ export default function PublicQuiz() {
       <Shell>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (phase === "loaderror") {
+    return (
+      <Shell>
+        <div className="text-center py-16 space-y-4">
+          <h1 className="text-xl font-semibold text-foreground">Não foi possível carregar</h1>
+          <p className="text-sm text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+          <button
+            onClick={loadQuiz}
+            className="inline-flex items-center gap-2 py-2.5 px-6 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90"
+          >
+            Tentar novamente
+          </button>
         </div>
       </Shell>
     );

@@ -48,6 +48,7 @@ export async function searchTrends(query: string, count = 5): Promise<SerperResu
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ q: query, num: count, gl: "br", hl: "pt-br" }),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!resp.ok) {
@@ -76,6 +77,7 @@ export async function searchNews(query: string, count = 5): Promise<SerperResult
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ q: query, num: count, gl: "br", hl: "pt-br" }),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!resp.ok) return [];

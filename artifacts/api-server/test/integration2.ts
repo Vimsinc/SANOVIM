@@ -139,6 +139,34 @@ async function main() {
   const noteCountAfter = (await db.select().from(leadEventsTable).where(and(eq(leadEventsTable.leadId, refLead.id), eq(leadEventsTable.type, "note")))).length;
   ok("nota idêntica repetida gera só 1 evento", noteCountAfter - noteCountBefore === 1, { noteCountBefore, noteCountAfter });
 
+  // ---- Validação de quiz na escrita ----
+  console.log("\n[Validação de quiz]");
+  r = await post(A, "/quizzes", {
+    slug: "quiz-ruim",
+    title: "Ruim",
+    whatsappNumber: "5511999998888",
+    questions: [{ id: "x", question: "?", options: [{ label: "só uma", points: 1 }] }], // < 2 opções
+    resultBands: [{ min: 0, level: "frio", title: "F", message: "m" }],
+  });
+  ok("POST /quizzes com <2 opções → 400", r.status === 400, r.status);
+  r = await post(A, "/quizzes", {
+    slug: "quiz-sem-perguntas",
+    title: "Sem",
+    whatsappNumber: "5511999998888",
+    questions: [],
+    resultBands: [{ min: 0, level: "frio", title: "F", message: "m" }],
+  });
+  ok("POST /quizzes sem perguntas → 400", r.status === 400, r.status);
+  r = await patch(A, `/quizzes/${qa.id}`, { resultBands: [{ min: 0, level: "invalido", title: "x", message: "m" }] });
+  ok("PATCH /quizzes com faixa inválida → 400", r.status === 400, r.status);
+
+  // ---- Atribuição de indicação cross-tenant NÃO ocorre ----
+  console.log("\n[Indicação cross-tenant]");
+  r = await post(J, "/public/quiz/qb/submit", { name: "Cross Lead", phone: "11955554444", ref: refA.code, answers: [{ questionId: "urg", optionIndex: 0 }] });
+  ok("submit no quiz de B com ref de A → 200", r.status === 200, r.status);
+  const [crossLead] = await db.select().from(leadsTable).where(eq(leadsTable.name, "Cross Lead")).limit(1);
+  ok("ref de A NÃO é atribuído em lead de B (referredByCode null)", crossLead?.referredByCode === null, crossLead?.referredByCode);
+
   // ---- Stats escopado ----
   console.log("\n[Stats]");
   r = await fetch(`${b}/stats`, { headers: A });
@@ -146,7 +174,7 @@ async function main() {
   ok("stats (A): totalLeads = 1", statsA.totalLeads === 1, statsA.totalLeads);
   r = await fetch(`${b}/stats`, { headers: B });
   const statsB = await r.json();
-  ok("stats (B): totalLeads = 0", statsB.totalLeads === 0, statsB.totalLeads);
+  ok("stats (B): totalLeads = 1 (o cross-tenant, atribuído a B)", statsB.totalLeads === 1, statsB.totalLeads);
 
   console.log(`\n──────────────\nRESULTADO: ${passed} passaram, ${failed} falharam`);
   server.close();

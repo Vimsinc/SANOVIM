@@ -8,6 +8,8 @@ import {
   followupsTable,
   referralsTable,
   submitQuizSchema,
+  quizQuestionsSchema,
+  resultBandsSchema,
   LEAD_STATUSES,
   FOLLOWUP_STATUSES,
   type Quiz,
@@ -46,11 +48,11 @@ async function generateReferralCode(): Promise<string> {
   return `IND-${Date.now().toString(36).toUpperCase()}`;
 }
 
-/** Gera a fila de follow-up de um lead conforme a cadência da sua temperatura. */
-async function generateFollowups(leadId: number, temperature: string, name: string): Promise<void> {
+/** Monta as linhas da fila de follow-up conforme a cadência da temperatura. */
+function buildFollowupRows(leadId: number, temperature: string, name: string) {
   const steps = CADENCE_BY_TEMPERATURE[temperature] ?? CADENCE_BY_TEMPERATURE.frio;
   const now = Date.now();
-  const rows = steps.map((s) => ({
+  return steps.map((s) => ({
     leadId,
     stepOrder: s.order,
     channel: s.channel,
@@ -59,7 +61,6 @@ async function generateFollowups(leadId: number, temperature: string, name: stri
     dueAt: new Date(now + s.offsetHours * 3600 * 1000),
     status: "pending" as const,
   }));
-  if (rows.length) await db.insert(followupsTable).values(rows);
 }
 
 const router = Router();
@@ -211,10 +212,17 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
   // Atribuição de indicação: valida o código e conta a conversão
   let referredByCode: string | null = null;
   if (ref) {
+    // só atribui se o código de indicação pertencer ao mesmo dono do quiz
     const [referral] = await db
       .select({ code: referralsTable.code })
       .from(referralsTable)
-      .where(and(eq(referralsTable.code, ref), eq(referralsTable.active, true)))
+      .where(
+        and(
+          eq(referralsTable.code, ref),
+          eq(referralsTable.active, true),
+          quiz.ownerId != null ? eq(referralsTable.ownerId, quiz.ownerId) : sql`false`,
+        ),
+      )
       .limit(1);
     if (referral) referredByCode = referral.code;
   }
@@ -223,34 +231,36 @@ router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Pr
   const resultMessage =
     band?.message ?? "Com base no que você respondeu, uma avaliação pode ajudar a identificar a causa.";
 
-  const [lead] = await db
-    .insert(leadsTable)
-    .values({
-      ownerId: quiz.ownerId,
-      quizId: quiz.id,
-      name: name.trim(),
-      phone: phone.trim(),
-      email: email ? email.trim() : null,
-      specialty: quiz.specialty,
-      segment,
-      answers: leadAnswers,
-      score,
-      temperature,
-      status: "novo",
-      source: source ?? null,
-      referredByCode,
-      resultShown: resultMessage,
-    })
-    .returning();
-
-  await db.insert(leadEventsTable).values({
-    leadId: lead.id,
-    type: "created",
-    payload: { via: "quiz", slug: quiz.slug, score, temperature },
+  // Lead + evento + cadência num único commit (evita lead órfão em falha parcial)
+  const lead = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(leadsTable)
+      .values({
+        ownerId: quiz.ownerId,
+        quizId: quiz.id,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email ? email.trim() : null,
+        specialty: quiz.specialty,
+        segment,
+        answers: leadAnswers,
+        score,
+        temperature,
+        status: "novo",
+        source: source ?? null,
+        referredByCode,
+        resultShown: resultMessage,
+      })
+      .returning();
+    await tx.insert(leadEventsTable).values({
+      leadId: created.id,
+      type: "created",
+      payload: { via: "quiz", slug: quiz.slug, score, temperature },
+    });
+    const fuRows = buildFollowupRows(created.id, temperature, name);
+    if (fuRows.length) await tx.insert(followupsTable).values(fuRows);
+    return created;
   });
-
-  // Gera a cadência de follow-up automática conforme a temperatura
-  await generateFollowups(lead.id, temperature, name);
 
   const waMessage =
     `Olá! Fiz o quiz "${quiz.title}" e quero agendar uma avaliação.\n` +
@@ -556,6 +566,17 @@ router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: "slug, title e whatsappNumber são obrigatórios" });
     return;
   }
+  // Valida a definição do quiz (perguntas/faixas) — protege o funil público
+  const vq = quizQuestionsSchema.safeParse(questions ?? []);
+  if (!vq.success) {
+    res.status(400).json({ error: "Perguntas inválidas", details: vq.error.issues });
+    return;
+  }
+  const vb = resultBandsSchema.safeParse(resultBands ?? []);
+  if (!vb.success) {
+    res.status(400).json({ error: "Faixas de resultado inválidas", details: vb.error.issues });
+    return;
+  }
 
   const [existing] = await db
     .select({ id: quizzesTable.id })
@@ -578,8 +599,8 @@ router.post("/quizzes", async (req: Request, res: Response): Promise<void> => {
         segment: segment ?? null,
         description: description ?? null,
         whatsappNumber,
-        questions: (questions as QuizQuestion[]) ?? [],
-        resultBands: (resultBands as ResultBand[]) ?? [],
+        questions: vq.data,
+        resultBands: vb.data,
       })
       .returning();
     res.status(201).json(created);
@@ -599,6 +620,23 @@ router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> 
   const id = parseId(req, res);
   if (id === null) return;
   const body = req.body as Partial<typeof quizzesTable.$inferInsert>;
+  // valida perguntas/faixas quando presentes
+  if ("questions" in body) {
+    const v = quizQuestionsSchema.safeParse(body.questions);
+    if (!v.success) {
+      res.status(400).json({ error: "Perguntas inválidas", details: v.error.issues });
+      return;
+    }
+    body.questions = v.data;
+  }
+  if ("resultBands" in body) {
+    const v = resultBandsSchema.safeParse(body.resultBands);
+    if (!v.success) {
+      res.status(400).json({ error: "Faixas de resultado inválidas", details: v.error.issues });
+      return;
+    }
+    body.resultBands = v.data;
+  }
   const allowed: Partial<typeof quizzesTable.$inferInsert> = {};
   for (const k of ["title", "specialty", "segment", "description", "whatsappNumber", "questions", "resultBands", "active"] as const) {
     if (k in body) (allowed as Record<string, unknown>)[k] = body[k];
@@ -681,6 +719,10 @@ router.post("/quizzes/generate", async (req: Request, res: Response): Promise<vo
       },
     });
   } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "Conflito de slug ao gerar. Tente novamente." });
+      return;
+    }
     req.log.error({ err }, "quiz generate error");
     res.status(500).json({ error: "Não foi possível gerar o quiz agora. Tente novamente." });
   }
@@ -723,8 +765,17 @@ router.post("/quizzes/seed", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const created = await db.insert(quizzesTable).values(toCreate).returning({ slug: quizzesTable.slug });
-  res.status(201).json({ created: created.length, slugs: created.map((c) => c.slug) });
+  try {
+    const created = await db.insert(quizzesTable).values(toCreate).returning({ slug: quizzesTable.slug });
+    res.status(201).json({ created: created.length, slugs: created.map((c) => c.slug) });
+  } catch (err) {
+    // corrida de slug entre clínicas → conflito em vez de 500
+    if ((err as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "Conflito de slug ao criar. Tente novamente." });
+      return;
+    }
+    throw err;
+  }
 });
 
 // ---- Indicações (referral) ------------------------------------------------

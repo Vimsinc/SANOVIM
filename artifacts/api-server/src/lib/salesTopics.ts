@@ -1,6 +1,6 @@
 import { logger } from "./logger";
 import { searchGoogleTrends } from "./serper";
-import { getTopPosts } from "./instagram";
+import { getTopPosts, getAccountConfig } from "./instagram";
 
 // Descobre os temas/perguntas mais buscados e mais engajados por tema de saúde,
 // combinando três fontes: Google (People Also Ask + related), Google Trends e
@@ -62,6 +62,7 @@ async function serperSearch(query: string): Promise<SerperSearchResponse | null>
       method: "POST",
       headers: { "X-API-KEY": key, "Content-Type": "application/json" },
       body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num: 10 }),
+      signal: AbortSignal.timeout(8000),
     });
     if (!resp.ok) {
       logger.error({ status: resp.status }, "Serper search error (topics)");
@@ -92,6 +93,9 @@ function extractFromCaptions(captions: string[]): { topics: string[]; hashtags: 
 }
 
 async function fetchInstagramSignals(account: string): Promise<{ topics: string[]; hashtags: string[] }> {
+  // Sem credenciais reais, não usamos dados mock como se fossem sinais reais.
+  const cfg = getAccountConfig(account);
+  if (!cfg?.token || !cfg?.userId) return { topics: [], hashtags: [] };
   try {
     const posts = await getTopPosts(account);
     return extractFromCaptions(posts.map((p) => p.caption ?? ""));
