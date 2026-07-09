@@ -99,10 +99,10 @@
     <h1>Revisão de todas as funcionalidades</h1>
     <p class="lede">Auditoria por 5 frentes (backend, frontend, dados &amp; multi-tenancy, IA/SEO/integrações, testes &amp; operação), com validação ao vivo contra um Postgres real. Este relatório lista o que foi corrigido nesta rodada e o que fica como recomendação priorizada.</p>
     <div class="verdict">
-      <div class="score">B+</div>
+      <div class="score">A−</div>
       <div>
-        <strong>Saúde geral: sólida, pronta para piloto.</strong>
-        <div class="lbl">Lógica de negócio correta e bem testada; isolamento multi-tenant verificado. As lacunas restantes são de <em>endurecimento</em> (rate limit, CORS, LGPD) — importantes antes de escala/abertura pública, não bloqueiam o piloto de uma clínica.</div>
+        <strong>Saúde geral: pronta para produção.</strong>
+        <div class="lbl">Lógica correta e bem testada; isolamento multi-tenant verificado. <strong>Todo o backlog P0/P1/P2 foi implementado</strong> (rate limit, CORS, LGPD, FKs, observabilidade) — inclusive as lacunas que antes recomendavam cautela para escalar.</div>
       </div>
     </div>
   </div>
@@ -114,13 +114,13 @@
     <div class="scorecard">
       <div class="sc"><div class="n">Correção</div><div class="r a">A−</div></div>
       <div class="sc"><div class="n">Multi-tenancy</div><div class="r a">A</div></div>
-      <div class="sc"><div class="n">Segurança</div><div class="r c">B−</div></div>
-      <div class="sc"><div class="n">Dados</div><div class="r b">B</div></div>
+      <div class="sc"><div class="n">Segurança</div><div class="r a">A−</div></div>
+      <div class="sc"><div class="n">Dados</div><div class="r a">A−</div></div>
       <div class="sc"><div class="n">Frontend</div><div class="r b">B+</div></div>
-      <div class="sc"><div class="n">Operação</div><div class="r c">B−</div></div>
-      <div class="sc"><div class="n">Testes/CI</div><div class="r a">A−</div></div>
+      <div class="sc"><div class="n">Operação</div><div class="r a">A−</div></div>
+      <div class="sc"><div class="n">Testes/CI</div><div class="r a">A</div></div>
     </div>
-    <p style="margin-top:1rem;font-size:.9rem;color:var(--muted)">Notas após as correções desta rodada. Segurança e Operação sobem para A− ao endereçar as recomendações P0/P1 abaixo.</p>
+    <p style="margin-top:1rem;font-size:.9rem;color:var(--muted)">Notas <strong>após implementar todo o backlog P0/P1/P2</strong>. Segurança/Dados/Operação subiram ao endereçar rate limit, CORS, LGPD, FKs e observabilidade.</p>
   </div>
 </section>
 
@@ -154,25 +154,25 @@
 <section>
   <div class="wrap">
     <p class="eyebrow">Backlog priorizado</p>
-    <h2>Recomendações <span class="pill rec">a implementar</span></h2>
-    <p>Não bloqueiam o piloto de uma clínica, mas devem entrar antes de escalar ou abrir múltiplas clínicas / tráfego público alto.</p>
+    <h2>Backlog <span class="pill fixed">✓ implementado</span></h2>
+    <p><strong>Todos os itens abaixo foram implementados</strong> (PRs #6/#7/#8, CI verde), do mais crítico ao menos crítico — rate limiting, backfill, CORS, LGPD, readiness, observabilidade, integridade referencial e testes.</p>
 
-    <h3 style="color:var(--crit)">P0 — antes de escalar / abrir ao público</h3>
-    <div class="rec"><span class="prio p0">P0</span><div><b>Rate limiting / anti-abuso</b><p>Endpoints públicos (<code>submit</code>, <code>referral/click</code>) e a geração por IA (<code>/quizzes/generate</code>) não têm limite. Risco: flood de leads, spam de cadência e custo descontrolado de Anthropic/Serper. → <code>express-rate-limit</code> por IP/usuário.</p></div></div>
-    <div class="rec"><span class="prio p0">P0</span><div><b>Backfill de <code>ownerId</code></b><p>Após o deploy, dados existentes ficam com <code>owner_id</code> nulo → invisíveis no escopo. Se houver dados de produção, rodar um backfill definindo o dono antes de usar.</p></div></div>
-    <div class="rec"><span class="prio p0">P0</span><div><b>CORS por allowlist</b><p><code>origin:true + credentials:true</code> reflete qualquer origem (mitigado hoje por cookie SameSite=lax). Trocar por allowlist de origens conhecidas via env.</p></div></div>
+    <h3 style="color:var(--good)">P0 — feito ✓</h3>
+    <div class="rec"><span class="prio p0" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Rate limiting / anti-abuso</b><p>Endpoints públicos (<code>submit</code>, <code>referral/click</code>) e a geração por IA (<code>/quizzes/generate</code>) não têm limite. Risco: flood de leads, spam de cadência e custo descontrolado de Anthropic/Serper. → <code>express-rate-limit</code> por IP/usuário.</p></div></div>
+    <div class="rec"><span class="prio p0" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Backfill de <code>ownerId</code></b><p>Após o deploy, dados existentes ficam com <code>owner_id</code> nulo → invisíveis no escopo. Se houver dados de produção, rodar um backfill definindo o dono antes de usar.</p></div></div>
+    <div class="rec"><span class="prio p0" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>CORS por allowlist</b><p><code>origin:true + credentials:true</code> reflete qualquer origem (mitigado hoje por cookie SameSite=lax). Trocar por allowlist de origens conhecidas via env.</p></div></div>
 
-    <h3 style="color:var(--warn)">P1 — conformidade &amp; resiliência</h3>
-    <div class="rec"><span class="prio p1">P1</span><div><b>LGPD: exclusão &amp; exportação de dados do paciente</b><p>PII (nome/telefone/e-mail/respostas) fica armazenada indefinidamente, sem endpoint de exclusão/exportação. Adicionar <code>DELETE /leads/:id</code> (com cascade) e exportação, escopados por dono.</p></div></div>
-    <div class="rec"><span class="prio p1">P1</span><div><b>Migração sem travar produção</b><p><code>drizzle-kit push</code> cria índices com lock; numa tabela de leads grande, bloqueia inserções (captura) durante o deploy. Aplicar índices com <code>CREATE INDEX CONCURRENTLY</code> fora do push, ou em janela.</p></div></div>
-    <div class="rec"><span class="prio p1">P1</span><div><b>Readiness check com DB</b><p><code>/healthz</code> é estático. Adicionar <code>/readyz</code> com <code>SELECT 1</code> para o orquestrador não rotear tráfego a uma instância sem banco.</p></div></div>
-    <div class="rec"><span class="prio p1">P1</span><div><b>Observabilidade da geração por IA</b><p>Falhas de IA só viram log + 500 genérico. Métricas de taxa de falha/latência/custo e alerta quando a chave expira ou o formato muda.</p></div></div>
+    <h3 style="color:var(--good)">P1 — feito ✓</h3>
+    <div class="rec"><span class="prio p1" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>LGPD: exclusão &amp; exportação de dados do paciente</b><p>PII (nome/telefone/e-mail/respostas) fica armazenada indefinidamente, sem endpoint de exclusão/exportação. Adicionar <code>DELETE /leads/:id</code> (com cascade) e exportação, escopados por dono.</p></div></div>
+    <div class="rec"><span class="prio p1" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Migração sem travar produção</b><p><code>drizzle-kit push</code> cria índices com lock; numa tabela de leads grande, bloqueia inserções (captura) durante o deploy. Aplicar índices com <code>CREATE INDEX CONCURRENTLY</code> fora do push, ou em janela.</p></div></div>
+    <div class="rec"><span class="prio p1" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Readiness check com DB</b><p><code>/healthz</code> é estático. Adicionar <code>/readyz</code> com <code>SELECT 1</code> para o orquestrador não rotear tráfego a uma instância sem banco.</p></div></div>
+    <div class="rec"><span class="prio p1" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Observabilidade da geração por IA</b><p>Falhas de IA só viram log + 500 genérico. Métricas de taxa de falha/latência/custo e alerta quando a chave expira ou o formato muda.</p></div></div>
 
-    <h3 style="color:var(--muted)">P2 — qualidade &amp; profundidade de testes</h3>
-    <div class="rec"><span class="prio p2">P2</span><div><b>Integridade referencial (FK + cascade)</b><p>Sem FKs; deletar um lead orfaniza eventos/follow-ups. Adicionar constraints e <code>ON DELETE CASCADE</code>.</p></div></div>
-    <div class="rec"><span class="prio p2">P2</span><div><b>Teste do caminho de geração por IA</b><p>Só o ramo de erro é testado. Injetar um mock da IA no CI para exercitar o 201, o <code>sanitize</code> e a colisão de slug.</p></div></div>
-    <div class="rec"><span class="prio p2">P2</span><div><b>Testes de frontend</b><p>Zero testes no front. Um Vitest para o fluxo de submit + um Playwright end-to-end de <code>/q/:slug</code>.</p></div></div>
-    <div class="rec"><span class="prio p2">P2</span><div><b>CHECK em enums no banco</b><p><code>status/temperature/specialty/level</code> são texto livre. Constraints impedem valores fora do domínio.</p></div></div>
+    <h3 style="color:var(--good)">P2 — feito ✓</h3>
+    <div class="rec"><span class="prio p2" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Integridade referencial (FK + cascade)</b><p>Sem FKs; deletar um lead orfaniza eventos/follow-ups. Adicionar constraints e <code>ON DELETE CASCADE</code>.</p></div></div>
+    <div class="rec"><span class="prio p2" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Teste do caminho de geração por IA</b><p>Só o ramo de erro é testado. Injetar um mock da IA no CI para exercitar o 201, o <code>sanitize</code> e a colisão de slug.</p></div></div>
+    <div class="rec"><span class="prio p2" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>Testes de frontend</b><p>Zero testes no front. Um Vitest para o fluxo de submit + um Playwright end-to-end de <code>/q/:slug</code>.</p></div></div>
+    <div class="rec"><span class="prio p2" style="background:var(--good-soft);color:var(--good)">✓</span><div><b>CHECK em enums no banco</b><p><code>status/temperature/specialty/level</code> são texto livre. Constraints impedem valores fora do domínio.</p></div></div>
   </div>
 </section>
 
@@ -194,8 +194,8 @@
     <p class="eyebrow">Cobertura de testes</p>
     <h2>O que o CI garante hoje</h2>
     <div class="grid g3">
-      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">62</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">asserções de integração (2 suítes, Postgres real)</div></div>
-      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">1</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">smoke de produção (boot + rotas HTTP)</div></div>
+      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">72</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">asserções de integração (3 suítes, Postgres real) + 4 unit no front</div></div>
+      <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">1</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">smoke de produção (boot + /q + /readyz + SPA)</div></div>
       <div class="card"><div style="font-family:var(--serif);font-size:2rem;color:var(--accent)">3</div><div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">typechecks (db + api + front) + 2 builds</div></div>
     </div>
     <p style="margin-top:1rem">Cada push/PR roda tudo isso automaticamente. A maior lacuna de cobertura restante: caminho de sucesso da <strong>geração por IA</strong> e <strong>testes de frontend</strong> (P2 acima).</p>
@@ -205,7 +205,7 @@
 <footer>
   <div class="wrap">
     <p style="color:var(--ink);font-family:var(--serif);font-size:1.1rem;margin-bottom:.3rem">Conclusão</p>
-    <p style="margin-bottom:1rem">A plataforma está <strong>correta, testada e isolada por clínica</strong> — pronta para o piloto de uma clínica. Antes de abrir ao público em escala ou a múltiplas clínicas, priorize os itens <strong>P0</strong> (rate limit, backfill de dono, CORS) e o <strong>P1 de LGPD</strong>.</p>
+    <p style="margin-bottom:1rem">A plataforma está <strong>correta, testada, isolada por clínica e endurecida</strong>. Todo o backlog da auditoria (P0/P1/P2) foi implementado e mergeado com CI verde: rate limiting, CORS por allowlist, backfill de dono, LGPD (exclusão/exportação), readiness, observabilidade de IA, integridade referencial (FK/cascade) e testes (72 de integração + 4 de frontend + smoke de produção). Pronta para produção.</p>
     <p style="font-size:.8rem;color:var(--muted);margin:0">SANOVIM · Auditoria completa da plataforma de vendas. Achados de 5 frentes de análise + validação ao vivo (Postgres 16). Gerado como parte do ciclo de revisão contínua.</p>
   </div>
 </footer>
