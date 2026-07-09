@@ -5,6 +5,10 @@ dist
 tmp
 out-tsc
 *.tsbuildinfo
+
+# Vercel serverless bundle gerado no build (api/[...path].mjs)
+/api/
+.vercel
 .expo
 .expo-shared
 

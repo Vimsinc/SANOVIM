@@ -1,11 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter ./artifacts/sanovim run build",
+  "buildCommand": "pnpm --filter ./artifacts/sanovim run build && pnpm --filter ./artifacts/api-server run build:serverless",
   "outputDirectory": "artifacts/sanovim/dist/public",
+  "functions": {
+    "api/[...path].mjs": { "maxDuration": 60 }
+  },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://sanovim.onrender.com/api/:path*" },
-    { "source": "/q/:path*", "destination": "https://sanovim.onrender.com/q/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

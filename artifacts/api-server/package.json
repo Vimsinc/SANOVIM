@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
+    "build:serverless": "node ./scripts/build-serverless.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:integration": "node ./test/build-test.mjs integration.ts && node ./test/dist/integration.mjs && node ./test/build-test.mjs integration2.ts && node ./test/dist/integration2.mjs && node ./test/build-test.mjs integration3.ts && RL_PUBLIC_PER_MIN=3 SALES_AI_FAKE=1 node ./test/dist/integration3.mjs",
     "test:smoke": "bash ./test/smoke-prod.sh",
