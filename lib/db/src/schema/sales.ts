@@ -1,5 +1,7 @@
-import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 // ---------------------------------------------------------------------------
 // Sales / Lead-generation funnel schema
@@ -43,7 +45,7 @@ export const quizzesTable = pgTable(
   {
   id: serial("id").primaryKey(),
   // Dono (vibe_users.id) — escopo multi-clínica. Null = legado/global.
-  ownerId: integer("owner_id"),
+  ownerId: integer("owner_id").references(() => usersTable.id, { onDelete: "set null" }),
   // URL pública: /q/:slug
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
@@ -98,8 +100,8 @@ export const leadsTable = pgTable(
   {
   id: serial("id").primaryKey(),
   // Dono (vibe_users.id) — herdado do quiz de origem
-  ownerId: integer("owner_id"),
-  quizId: integer("quiz_id"),
+  ownerId: integer("owner_id").references(() => usersTable.id, { onDelete: "set null" }),
+  quizId: integer("quiz_id").references(() => quizzesTable.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
@@ -132,6 +134,8 @@ export const leadsTable = pgTable(
     index("idx_leads_source").on(t.source),
     index("idx_leads_referred_by").on(t.referredByCode),
     index("idx_leads_created").on(t.createdAt),
+    check("leads_status_check", sql`${t.status} in ('novo','contatado','agendado','compareceu','fechado','perdido')`),
+    check("leads_temperature_check", sql`${t.temperature} in ('frio','morno','quente')`),
   ],
 );
 
@@ -143,7 +147,7 @@ export const leadEventsTable = pgTable(
   "vibe_lead_events",
   {
   id: serial("id").primaryKey(),
-  leadId: integer("lead_id").notNull(),
+  leadId: integer("lead_id").notNull().references(() => leadsTable.id, { onDelete: "cascade" }),
   // status_change | note | message | follow_up | created
   type: text("type").notNull(),
   payload: jsonb("payload").$type<Record<string, unknown>>(),
@@ -163,7 +167,7 @@ export const followupsTable = pgTable(
   "vibe_followups",
   {
   id: serial("id").primaryKey(),
-  leadId: integer("lead_id").notNull(),
+  leadId: integer("lead_id").notNull().references(() => leadsTable.id, { onDelete: "cascade" }),
   // ordem do toque na cadência (1, 2, 3...)
   stepOrder: integer("step_order").notNull().default(1),
   // whatsapp | email
@@ -180,6 +184,8 @@ export const followupsTable = pgTable(
   (t) => [
     index("idx_followups_lead").on(t.leadId),
     index("idx_followups_status_due").on(t.status, t.dueAt),
+    check("followups_status_check", sql`${t.status} in ('pending','done','skipped','cancelled')`),
+    check("followups_channel_check", sql`${t.channel} in ('whatsapp','email')`),
   ],
 );
 
@@ -192,7 +198,7 @@ export const referralsTable = pgTable(
   {
   id: serial("id").primaryKey(),
   // Dono (vibe_users.id)
-  ownerId: integer("owner_id"),
+  ownerId: integer("owner_id").references(() => usersTable.id, { onDelete: "set null" }),
   code: text("code").notNull().unique(),
   // Nome de quem indica (paciente embaixador)
   patientName: text("patient_name").notNull(),
