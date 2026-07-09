@@ -381,6 +381,52 @@ router.patch("/leads/:id", async (req: Request, res: Response): Promise<void> =>
   res.json(updated);
 });
 
+// LGPD — exportação dos dados do lead (portabilidade)
+router.get("/leads/:id/export", async (req: Request, res: Response): Promise<void> => {
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const id = parseId(req, res);
+  if (id === null) return;
+  const [lead] = await db
+    .select()
+    .from(leadsTable)
+    .where(and(eq(leadsTable.id, id), eq(leadsTable.ownerId, uid)))
+    .limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado" });
+    return;
+  }
+  const [events, fus] = await Promise.all([
+    db.select().from(leadEventsTable).where(eq(leadEventsTable.leadId, id)).orderBy(leadEventsTable.createdAt),
+    db.select().from(followupsTable).where(eq(followupsTable.leadId, id)).orderBy(followupsTable.dueAt),
+  ]);
+  res.setHeader("Content-Disposition", `attachment; filename="lead-${id}.json"`);
+  res.json({ lead, events, followups: fus, exportedAt: new Date().toISOString() });
+});
+
+// LGPD — exclusão (direito ao esquecimento). Remove lead + eventos + follow-ups.
+router.delete("/leads/:id", async (req: Request, res: Response): Promise<void> => {
+  const uid = await currentUserId(req, res);
+  if (uid === null) return;
+  const id = parseId(req, res);
+  if (id === null) return;
+  const [lead] = await db
+    .select({ id: leadsTable.id })
+    .from(leadsTable)
+    .where(and(eq(leadsTable.id, id), eq(leadsTable.ownerId, uid)))
+    .limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado" });
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.delete(followupsTable).where(eq(followupsTable.leadId, id));
+    await tx.delete(leadEventsTable).where(eq(leadEventsTable.leadId, id));
+    await tx.delete(leadsTable).where(eq(leadsTable.id, id));
+  });
+  res.json({ deleted: true, id });
+});
+
 // ---- Stats (funil) --------------------------------------------------------
 
 router.get("/stats", async (req: Request, res: Response): Promise<void> => {
@@ -724,8 +770,23 @@ router.post("/quizzes/generate", generateLimiter, async (req: Request, res: Resp
       res.status(409).json({ error: "Conflito de slug ao gerar. Tente novamente." });
       return;
     }
-    req.log.error({ err }, "quiz generate error");
-    res.status(500).json({ error: "Não foi possível gerar o quiz agora. Tente novamente." });
+    // observabilidade: classifica o modo de falha da geração por IA
+    const e = err as { name?: string; message?: string; status?: number };
+    const kind =
+      e?.name === "TimeoutError" || /timeout|aborted/i.test(e?.message ?? "")
+        ? "ai_timeout"
+        : e?.name === "SyntaxError"
+          ? "ai_parse"
+          : typeof e?.status === "number"
+            ? "ai_api"
+            : /quiz inválido|sem perguntas/i.test(e?.message ?? "")
+              ? "ai_invalid_output"
+              : "ai_unknown";
+    req.log.error({ err, event: "quiz_generate_failed", kind, theme }, "quiz generate error");
+    res.status(kind === "ai_timeout" ? 504 : 500).json({
+      error: "Não foi possível gerar o quiz agora. Tente novamente.",
+      kind,
+    });
   }
 });
 

@@ -26,11 +26,12 @@ done
 [ "$up" = 1 ] || { echo "servidor não respondeu healthz"; cat /tmp/smoke-server.log; exit 1; }
 
 code_health=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/healthz")
+code_ready=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/readyz")
 code_quiz=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/q/qualquer-slug")
 code_spa=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/leads")
 
-echo "healthz=$code_health  /q/:slug=$code_quiz  spa=$code_spa"
-if [ "$code_health" = 200 ] && [ "$code_quiz" = 200 ] && [ "$code_spa" = 200 ]; then
+echo "healthz=$code_health  readyz=$code_ready  /q/:slug=$code_quiz  spa=$code_spa"
+if [ "$code_health" = 200 ] && [ "$code_ready" = 200 ] && [ "$code_quiz" = 200 ] && [ "$code_spa" = 200 ]; then
   echo "SMOKE OK"
   exit 0
 fi

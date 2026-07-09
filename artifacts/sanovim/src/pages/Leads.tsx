@@ -12,6 +12,8 @@ import {
   Users,
   CalendarCheck,
   Trophy,
+  Download,
+  Trash2,
 } from "lucide-react";
 
 interface Lead {
@@ -115,6 +117,22 @@ export default function Leads() {
         load();
       } else {
         toast({ title: "Erro ao atualizar", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
+    }
+  }
+
+  async function deleteLead(lead: Lead) {
+    if (!window.confirm(`Excluir definitivamente o lead "${lead.name}"? Esta ação não pode ser desfeita (LGPD).`)) return;
+    try {
+      const res = await fetch(`/api/sales/leads/${lead.id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+        toast({ title: "Lead excluído", description: lead.name });
+        load();
+      } else {
+        toast({ title: "Não foi possível excluir", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erro de conexão", variant: "destructive" });
@@ -247,14 +265,30 @@ export default function Leads() {
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <a
-                        href={leadWa(lead)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"
-                      >
-                        <MessageCircle className="w-4 h-4" /> WhatsApp
-                      </a>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={leadWa(lead)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700"
+                        >
+                          <MessageCircle className="w-4 h-4" /> WhatsApp
+                        </a>
+                        <a
+                          href={`/api/sales/leads/${lead.id}/export`}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Exportar dados (LGPD)"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                        <button
+                          onClick={() => deleteLead(lead)}
+                          className="text-muted-foreground hover:text-red-500"
+                          title="Excluir lead (LGPD)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

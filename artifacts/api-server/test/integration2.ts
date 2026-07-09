@@ -176,6 +176,29 @@ async function main() {
   const statsB = await r.json();
   ok("stats (B): totalLeads = 1 (o cross-tenant, atribuído a B)", statsB.totalLeads === 1, statsB.totalLeads);
 
+  // ---- LGPD: export + exclusão (cascade) + cross-tenant ----
+  console.log("\n[LGPD]");
+  r = await post(J, "/public/quiz/qa/submit", { name: "Del Lead", phone: "11944443333", answers: [{ questionId: "urg", optionIndex: 0 }] });
+  await r.json();
+  const [delLead] = await db.select().from(leadsTable).where(eq(leadsTable.name, "Del Lead")).limit(1);
+  const evBefore = (await db.select().from(leadEventsTable).where(eq(leadEventsTable.leadId, delLead.id))).length;
+  const fuBefore = (await db.select().from(followupsTable).where(eq(followupsTable.leadId, delLead.id))).length;
+  ok("lead de teste tem eventos e follow-ups", evBefore > 0 && fuBefore > 0, { evBefore, fuBefore });
+
+  r = await fetch(`${b}/leads/${delLead.id}/export`, { headers: A });
+  const exp = await r.json();
+  ok("export retorna lead + eventos + follow-ups", r.status === 200 && exp.lead?.id === delLead.id && Array.isArray(exp.events) && Array.isArray(exp.followups), r.status);
+
+  r = await fetch(`${b}/leads/${delLead.id}`, { method: "DELETE", headers: B });
+  ok("DELETE cross-tenant (B) → 404", r.status === 404, r.status);
+
+  r = await fetch(`${b}/leads/${delLead.id}`, { method: "DELETE", headers: A });
+  ok("DELETE (A) → 200", r.status === 200, r.status);
+  const evAfter = (await db.select().from(leadEventsTable).where(eq(leadEventsTable.leadId, delLead.id))).length;
+  const fuAfter = (await db.select().from(followupsTable).where(eq(followupsTable.leadId, delLead.id))).length;
+  const [gone] = await db.select().from(leadsTable).where(eq(leadsTable.id, delLead.id)).limit(1);
+  ok("exclusão em cascata: lead + eventos + follow-ups removidos", !gone && evAfter === 0 && fuAfter === 0, { gone: !!gone, evAfter, fuAfter });
+
   console.log(`\n──────────────\nRESULTADO: ${passed} passaram, ${failed} falharam`);
   server.close();
   await new Promise((r) => setTimeout(r, 100));
