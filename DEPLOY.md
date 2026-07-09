@@ -34,7 +34,29 @@ frontend apontando para a API hospedada em outro lugar (seção final).
 
 ---
 
-## Caminho recomendado — host de contêiner (10–15 min)
+## Caminho mais rápido — Render Blueprint (menos cliques)
+
+O repo já traz um `render.yaml`. O Render lê esse arquivo e configura build,
+porta, health check e deploy automático sozinho. Passo a passo:
+
+1. **Render Dashboard → New → Blueprint** e conecte este repositório
+   (branch de produção). Ele detecta o `render.yaml` e mostra o serviço `sanovim`.
+2. Clique **Apply**. O Render vai pedir os **3 segredos** marcados `sync:false`:
+   - `DATABASE_URL` → string do seu **Supabase** (Settings → Database →
+     Connection string, pooler porta 6543).
+   - `ANTHROPIC_API_KEY` e `SERPER_KEY`.
+3. O build roda (Dockerfile) e o serviço sobe. Copie a URL provisória
+   (`https://sanovim.onrender.com`) e confirme: `curl -I .../api/healthz` → 200.
+4. **Settings → Custom Domain → Add** `sanovim.vimsinc.com`. O Render mostra um
+   alvo CNAME. No DNS de `vimsinc.com` crie **CNAME `sanovim` → `<alvo>`**.
+   O HTTPS é emitido automaticamente.
+
+Se o banco Supabase ainda não tiver o schema, rode uma vez (do seu terminal):
+`DATABASE_URL="...supabase..." pnpm --filter @workspace/db exec drizzle-kit push`.
+
+---
+
+## Caminho alternativo — outro host de contêiner (10–15 min)
 
 ### O que você vai precisar
 

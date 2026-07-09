@@ -1,0 +1,29 @@
+# Blueprint do Render — provisiona o SANOVIM inteiro (SPA + API + SEO) num serviço.
+# Como usar: Render Dashboard → New → Blueprint → conecte este repo.
+# O Render lê este arquivo, builda o Dockerfile e sobe o serviço.
+# Só falta você colar 3 segredos (marcados sync:false) e apontar o domínio.
+services:
+  - type: web
+    name: sanovim
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # não hiberna (o "free" dorme e derruba o funil). Troque se quiser.
+    region: oregon
+    healthCheckPath: /api/readyz # 200 só quando o Postgres responde
+    autoDeploy: true # cada push na branch de produção reimplanta sozinho
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_BASE_URL
+        value: https://sanovim.vimsinc.com
+      - key: CORS_ORIGINS
+        value: https://sanovim.vimsinc.com
+      # ↓↓↓ os 3 que VOCÊ cola no painel (Environment) — nunca ficam no repo:
+      - key: DATABASE_URL # string de conexão do seu Supabase (pooler, porta 6543)
+        sync: false
+      - key: ANTHROPIC_API_KEY # geração de quiz por IA
+        sync: false
+      - key: SERPER_KEY # pesquisa de temas mais buscados
+        sync: false
