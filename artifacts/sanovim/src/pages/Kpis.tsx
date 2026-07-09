@@ -43,6 +43,7 @@ const TEMP_COLORS: Record<string, string> = {
 export default function Kpis() {
   const [data, setData] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // Inputs de CAC/LTV (persistidos localmente)
   const [ticket, setTicket] = useState(() => Number(localStorage.getItem("kpi-ticket")) || 0);
@@ -55,9 +56,13 @@ export default function Kpis() {
 
   async function load() {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch("/api/sales/kpis", { credentials: "include" });
       if (res.ok) setData(await res.json());
+      else setError(true);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -75,12 +80,30 @@ export default function Kpis() {
   const ltv = ticket * recorrencia;
   const ratio = cac > 0 ? ltv / cac : 0;
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <>
         <TopBar title="KPIs" subtitle="Painel de indicadores do funil" />
         <div className="flex justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <>
+        <TopBar title="KPIs" subtitle="Painel de indicadores do funil" />
+        <div className="flex flex-col items-center gap-3 py-20 text-center">
+          <p className="text-foreground font-medium">Não foi possível carregar os KPIs</p>
+          <p className="text-sm text-muted-foreground">Verifique sua conexão e tente de novo.</p>
+          <button
+            onClick={load}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"
+          >
+            <RefreshCw className="w-4 h-4" /> Tentar novamente
+          </button>
         </div>
       </>
     );

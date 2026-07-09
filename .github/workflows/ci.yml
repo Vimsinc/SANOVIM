@@ -59,3 +59,6 @@ jobs:
 
       - name: Integration tests (real Postgres)
         run: pnpm --filter ./artifacts/api-server run test:integration
+
+      - name: Smoke test (production server boots + routes resolve)
+        run: pnpm --filter ./artifacts/api-server run test:smoke

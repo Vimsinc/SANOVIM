@@ -30,13 +30,37 @@ async function start() {
     await setupStaticServing(app);
   }
 
-  app.listen(port, (err) => {
+  const server = app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
       process.exit(1);
     }
     logger.info({ port }, "Server listening");
   });
+
+  // Encerramento gracioso: para de aceitar conexões, drena, fecha o pool.
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, "Shutting down");
+    const force = setTimeout(() => {
+      logger.warn("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+    server.close(async () => {
+      try {
+        const { pool } = await import("@workspace/db");
+        await pool.end();
+      } catch (err) {
+        logger.warn({ err }, "Error closing DB pool");
+      }
+      clearTimeout(force);
+      process.exit(0);
+    });
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 start().catch((err) => {

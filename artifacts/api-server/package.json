@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:integration": "node ./test/build-test.mjs integration.ts && node ./test/dist/integration.mjs && node ./test/build-test.mjs integration2.ts && node ./test/dist/integration2.mjs",
+    "test:smoke": "bash ./test/smoke-prod.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

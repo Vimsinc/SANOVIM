@@ -45,7 +45,7 @@ async function igFetch(account: string, path: string, params: Record<string, str
   url.searchParams.set("access_token", cfg.token);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  const resp = await fetch(url.toString());
+  const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
   if (!resp.ok) {
     const text = await resp.text();
     logger.error({ account, path, status: resp.status, body: text }, "Instagram API error");

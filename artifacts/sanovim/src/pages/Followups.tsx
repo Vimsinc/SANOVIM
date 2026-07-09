@@ -69,15 +69,21 @@ export default function Followups() {
   }, [scope]);
 
   async function resolve(f: Followup, status: "done" | "skipped") {
-    const res = await fetch(`/api/sales/followups/${f.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
-      setItems((prev) => prev.filter((x) => x.id !== f.id));
-      toast({ title: status === "done" ? "Follow-up concluído" : "Follow-up pulado" });
+    try {
+      const res = await fetch(`/api/sales/followups/${f.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setItems((prev) => prev.filter((x) => x.id !== f.id));
+        toast({ title: status === "done" ? "Follow-up concluído" : "Follow-up pulado" });
+      } else {
+        toast({ title: "Não foi possível atualizar o follow-up", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
     }
   }
 

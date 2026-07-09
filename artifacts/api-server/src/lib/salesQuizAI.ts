@@ -137,12 +137,15 @@ Retorne EXATAMENTE este JSON:
   "keywords": ["...", "..."]
 }`;
 
-  const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 3000,
-    system,
-    messages: [{ role: "user", content: prompt }],
-  });
+  const msg = await anthropic.messages.create(
+    {
+      model: "claude-sonnet-4-5",
+      max_tokens: 3000,
+      system,
+      messages: [{ role: "user", content: prompt }],
+    },
+    { timeout: 45000 },
+  );
 
   const text = msg.content[0]?.type === "text" ? msg.content[0].text : "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -151,5 +154,10 @@ Retorne EXATAMENTE este JSON:
     throw new Error("Resposta da IA inválida");
   }
   const parsed = JSON.parse(jsonMatch[0]);
-  return sanitize(parsed, theme);
+  const result = sanitize(parsed, theme);
+  // rejeita quiz degenerado (sem perguntas ou com opções vazias)
+  if (result.questions.length === 0 || result.questions.some((q) => q.options.length < 2)) {
+    throw new Error("IA retornou um quiz inválido (sem perguntas/opções suficientes)");
+  }
+  return result;
 }

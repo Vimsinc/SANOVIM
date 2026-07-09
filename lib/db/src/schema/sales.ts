@@ -213,6 +213,28 @@ export const referralsTable = pgTable(
 export type Referral = typeof referralsTable.$inferSelect;
 export type InsertReferral = typeof referralsTable.$inferInsert;
 
+// Zod para validar a DEFINIÇÃO de um quiz na escrita (POST/PATCH autenticado).
+// Sem isso, um quiz malformado quebra o funil público (submit → 500/NaN).
+export const quizOptionSchema = z.object({
+  label: z.string().min(1).max(160),
+  points: z.number().int().min(-20).max(50),
+  tag: z.string().max(40).optional(),
+});
+export const quizQuestionSchema = z.object({
+  id: z.string().min(1).max(80),
+  question: z.string().min(1).max(240),
+  help: z.string().max(200).optional(),
+  options: z.array(quizOptionSchema).min(2).max(6),
+});
+export const resultBandSchema = z.object({
+  min: z.number().int().min(0).max(1000),
+  level: z.enum(["frio", "morno", "quente"]),
+  title: z.string().min(1).max(120),
+  message: z.string().max(600),
+});
+export const quizQuestionsSchema = z.array(quizQuestionSchema).min(1).max(8);
+export const resultBandsSchema = z.array(resultBandSchema).min(1).max(6);
+
 // Zod para validar submissão pública do quiz
 export const submitQuizSchema = z.object({
   name: z.string().min(2).max(120),
