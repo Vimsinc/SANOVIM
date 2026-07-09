@@ -7,8 +7,9 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "test:integration": "node ./test/build-test.mjs integration.ts && node ./test/dist/integration.mjs && node ./test/build-test.mjs integration2.ts && node ./test/dist/integration2.mjs",
+    "test:integration": "node ./test/build-test.mjs integration.ts && node ./test/dist/integration.mjs && node ./test/build-test.mjs integration2.ts && node ./test/dist/integration2.mjs && node ./test/build-test.mjs integration3.ts && RL_PUBLIC_PER_MIN=3 node ./test/dist/integration3.mjs",
     "test:smoke": "bash ./test/smoke-prod.sh",
+    "backfill:owner": "node ./scripts/build.mjs backfill-owner.ts && node ./scripts/dist/backfill-owner.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "express-rate-limit": "^8.5.2",
     "fluent-ffmpeg": "^2.1.3",
     "multer": "^2.1.1",
     "node-fetch": "^3.3.2",

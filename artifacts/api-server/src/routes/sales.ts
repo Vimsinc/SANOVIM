@@ -23,6 +23,7 @@ import { DEFAULT_QUIZZES } from "../lib/salesSeed";
 import { CADENCE_BY_TEMPERATURE, renderMessage } from "../lib/salesCadence";
 import { gatherThemeSignals, flattenSignals, countSignals, isTheme, THEMES } from "../lib/salesTopics";
 import { generateQuizForTheme } from "../lib/salesQuizAI";
+import { publicWriteLimiter, generateLimiter } from "../middlewares/rateLimit";
 
 // Estágios em que a captação terminou → cancela follow-ups pendentes
 const TERMINAL_STATUSES = new Set(["agendado", "compareceu", "fechado", "perdido"]);
@@ -188,7 +189,7 @@ router.get("/public/quiz/:slug", async (req: Request, res: Response): Promise<vo
   res.json(toPublicQuiz(quiz));
 });
 
-router.post("/public/quiz/:slug/submit", async (req: Request, res: Response): Promise<void> => {
+router.post("/public/quiz/:slug/submit", publicWriteLimiter, async (req: Request, res: Response): Promise<void> => {
   const parsed = submitQuizSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Dados inválidos", details: parsed.error.issues });
@@ -659,7 +660,7 @@ router.patch("/quizzes/:id", async (req: Request, res: Response): Promise<void> 
 
 // Gera automaticamente um quiz por tema, embasado nos temas mais pesquisados
 // (Google/People Also Ask) e otimizado para SEO, via IA.
-router.post("/quizzes/generate", async (req: Request, res: Response): Promise<void> => {
+router.post("/quizzes/generate", generateLimiter, async (req: Request, res: Response): Promise<void> => {
   const uid = await currentUserId(req, res);
   if (uid === null) return;
   const { theme, whatsappNumber } = req.body as { theme?: string; whatsappNumber?: string };
@@ -781,7 +782,7 @@ router.post("/quizzes/seed", async (req: Request, res: Response): Promise<void> 
 // ---- Indicações (referral) ------------------------------------------------
 
 // PÚBLICO: registra um clique no link de indicação e devolve para onde ir
-router.get("/public/referral/:code", async (req: Request, res: Response): Promise<void> => {
+router.get("/public/referral/:code", publicWriteLimiter, async (req: Request, res: Response): Promise<void> => {
   const code = String(req.params.code);
   const [referral] = await db
     .select()
