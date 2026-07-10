@@ -1,36 +1,120 @@
 # Deploy do SANOVIM — `sanovim.vimsinc.com`
 
-Este guia coloca **o app inteiro no ar** (o funil público de quiz → lead →
-WhatsApp **e** o painel administrativo: Leads, Follow-ups, Indicações, Editor
-de Quiz, KPIs, geração de quiz por IA, SEO).
-
-> **Resumo em uma linha:** o SANOVIM é **um servidor Express** que serve o SPA
-> React **e** a API no mesmo processo. Ele roda em **qualquer host de
-> contêiner** (Railway, Render, Fly.io, Google Cloud Run…). O `Dockerfile` na
-> raiz já está pronto e testado. O domínio `sanovim.vimsinc.com` é apontado
-> por um registro **CNAME** para o host escolhido.
+Este guia mostra como colocar o SANOVIM no ar em **`sanovim.vimsinc.com`**. O
+caminho **recomendado e já configurado no repositório é a Vercel** (deploy
+nativo: SPA estático + funil como Vercel Function). O caminho de **contêiner**
+(Render/Railway/Fly) fica como alternativa quando você precisar de **tudo** —
+inclusive vídeo/FFmpeg, SEO server-side de `/q/:slug` e o painel admin com
+login OIDC.
 
 ---
 
-## Por que não Vercel puro? (leia antes de decidir)
+## Deploy na Vercel (nativo) — recomendado
 
-A Vercel é ótima para **frontend estático + funções serverless**. O SANOVIM
-não é isso: é **um servidor Express de longa duração** que também:
+O repositório já traz `vercel.json` na raiz, uma **Vercel Function** para o
+funil (`api/[...path].mjs`, gerada no build) e o SPA estático. Esse pipeline
+foi **buildado e testado neste repo**: o frontend compila para
+`artifacts/sanovim/dist/public`, o bundle serverless importa limpo em modo
+produção e `/api/healthz` responde `200`.
 
-1. **Serve o próprio SPA** e faz **SEO server-side** em `/q/:slug` (injeta
-   `<title>`, `<meta>` e JSON-LD antes de entregar o HTML) — precisa de um
-   processo Node rodando, não de uma função que "acorda" a cada request.
-2. **Processa vídeo/Reels com FFmpeg** (binário de sistema) — o runtime
-   serverless da Vercel não tem FFmpeg.
-3. **Login administrativo via OIDC** hoje aponta para o provedor do Replit
-   (`ISSUER_URL` padrão `https://replit.com/oidc`). Fora do Replit o login do
-   painel exige configurar um OIDC próprio (veja "Autenticação" abaixo). **O
-   funil público — quiz, captura de lead, WhatsApp — não exige login e
-   funciona em qualquer lugar.**
+### O que roda na Vercel (e o que não roda)
 
-**Conclusão:** para "tudo funcionando" (o que você pediu), o encaixe honesto é
-um **host de contêiner**. A Vercel entra, no máximo, como opção de servir só o
-frontend apontando para a API hospedada em outro lugar (seção final).
+A função serverless é **enxuta de propósito** (`artifacts/api-server/src/serverless.ts`):
+sobe só o que o **funil público** precisa — `health`, `auth` e `/api/sales`
+(quiz → lead → WhatsApp, follow-ups, indicações, KPIs, geração de quiz por IA).
+
+Ficam **de fora** na Vercel (dependem de binário de sistema / processo de longa
+duração, não cabem em serverless):
+
+- **Vídeo/Reels (FFmpeg)** e **imagens (sharp)** — módulos legados, não usados
+  no funil.
+- **SEO server-side de `/q/:slug`** — a Vercel serve o `index.html` estático,
+  sem injetar `<title>`/`<meta>`/JSON-LD por quiz. Se ranquear os quizzes no
+  Google for prioridade, use o caminho de contêiner.
+- **Login admin via OIDC** — hoje aponta para o Replit (`ISSUER_URL` padrão
+  `https://replit.com/oidc`). Fora do Replit, o login do painel exige um OIDC
+  próprio (veja "Autenticação" abaixo). **O funil público não usa login e
+  funciona normalmente.**
+
+### Passo 1 — Banco (Supabase): aplicar o schema
+
+O projeto usa Drizzle com `drizzle-kit push` (sem arquivos SQL de migração).
+Aponte **uma vez** para o banco de produção:
+
+```bash
+DATABASE_URL="postgresql://...supabase..." pnpm --filter @workspace/db exec drizzle-kit push
+```
+
+Use a connection string do **pooler** (porta 6543) — ideal para serverless.
+Se já havia dados sem dono, rode o backfill de multi-tenancy:
+
+```bash
+DATABASE_URL="..." OWNER_EMAIL="ldsouzad@gmail.com" \
+  pnpm --filter @workspace/api-server run backfill:owner
+```
+
+### Passo 2 — Importar o repo na Vercel
+
+1. **Vercel Dashboard → Add New… → Project** e conecte este repositório
+   (branch de produção).
+2. A Vercel lê o `vercel.json` automaticamente. **Não sobrescreva** nada — os
+   comandos já estão definidos:
+   - Install: `pnpm install --frozen-lockfile`
+   - Build: builda o SPA **e** empacota `api/[...path].mjs`
+   - Output: `artifacts/sanovim/dist/public`
+   - Rewrites: `/api/*` → a Function; todo o resto → `index.html` (SPA).
+3. Deixe **Root Directory = raiz do repo** (o `vercel.json` está na raiz).
+
+### Passo 3 — Variáveis de ambiente (Project → Settings → Environment Variables)
+
+Mínimo para o funil público funcionar:
+
+```
+DATABASE_URL      = postgresql://...supabase...   # pooler, porta 6543
+PUBLIC_BASE_URL   = https://sanovim.vimsinc.com
+CORS_ORIGINS      = https://sanovim.vimsinc.com
+ANTHROPIC_API_KEY = sk-ant-...    # geração de quiz por IA
+SERPER_KEY        = ...           # temas mais buscados
+```
+
+`NODE_ENV=production` é definido **automaticamente** pela Vercel — não precisa
+setar. Em pooler serverless, considere `PG_POOL_MAX=5`. Veja a tabela completa
+em **"Variáveis de ambiente (referência completa)"** abaixo.
+
+### Passo 4 — Domínio `sanovim.vimsinc.com`
+
+1. **Project → Settings → Domains → Add** `sanovim.vimsinc.com`.
+2. A Vercel mostra o alvo de DNS. No DNS de `vimsinc.com` crie:
+
+   | Tipo  | Nome (host) | Valor (alvo)          |
+   |-------|-------------|-----------------------|
+   | CNAME | `sanovim`   | `cname.vercel-dns.com` |
+
+3. A Vercel emite o **TLS/HTTPS** automaticamente. Confirme:
+
+   ```bash
+   curl -I https://sanovim.vimsinc.com/api/healthz   # 200
+   curl -I https://sanovim.vimsinc.com/              # 200 (SPA)
+   ```
+
+### Validar o build da Vercel localmente (opcional)
+
+Reproduz exatamente o que a Vercel roda:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter ./artifacts/sanovim   run build            # -> dist/public
+pnpm --filter ./artifacts/api-server run build:serverless # -> api/[...path].mjs
+```
+
+---
+
+## Alternativa: app inteiro num contêiner (Render/Railway/Fly)
+
+Use este caminho quando precisar de **tudo** — vídeo/FFmpeg, SEO server-side de
+`/q/:slug` e painel admin. Aqui o SANOVIM roda como **um servidor Express** que
+serve o SPA **e** a API no mesmo processo (o `Dockerfile` da raiz já está pronto
+e testado). O domínio é apontado por **CNAME** para o host escolhido.
 
 ---
 
