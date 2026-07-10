@@ -4,15 +4,73 @@ Este guia coloca **o app inteiro no ar** (o funil público de quiz → lead →
 WhatsApp **e** o painel administrativo: Leads, Follow-ups, Indicações, Editor
 de Quiz, KPIs, geração de quiz por IA, SEO).
 
-> **Resumo em uma linha:** o SANOVIM é **um servidor Express** que serve o SPA
-> React **e** a API no mesmo processo. Ele roda em **qualquer host de
-> contêiner** (Railway, Render, Fly.io, Google Cloud Run…). O `Dockerfile` na
-> raiz já está pronto e testado. O domínio `sanovim.vimsinc.com` é apontado
-> por um registro **CNAME** para o host escolhido.
+> **Resumo em uma linha:** há **dois caminhos** prontos no repo. **(A) Vercel
+> nativo** — SPA estático + o funil como **função serverless** (`vercel.json`
+> já configurado, este é o caminho recomendado para `sanovim.vimsinc.com`).
+> **(B) Host de contêiner** (Railway/Render/Fly) rodando o servidor Express
+> inteiro via `Dockerfile` — necessário se você precisar de FFmpeg (vídeo/Reels)
+> ou do SEO server-side em `/q/:slug`.
 
 ---
 
-## Por que não Vercel puro? (leia antes de decidir)
+## Deploy na Vercel (nativo) — recomendado para `sanovim.vimsinc.com`
+
+O repo **já está pronto para a Vercel**: o `vercel.json` na raiz builda o SPA e
+empacota o funil (`/api/*`) como função serverless. **Não precisa de Render nem
+de contêiner.** O build foi verificado localmente (SPA em
+`artifacts/sanovim/dist/public`, função em `api/[...path].mjs` carregando como
+handler Express válido).
+
+**Passo a passo (painel da Vercel — precisa da sua conta):**
+
+1. **Vercel → Add New → Project → Import Git Repository** e selecione
+   `vimsinc/sanovim`. A Vercel detecta o `vercel.json` e preenche sozinha:
+   - Install: `pnpm install --frozen-lockfile`
+   - Build: `pnpm --filter ./artifacts/sanovim run build && pnpm --filter ./artifacts/api-server run build:serverless`
+   - Output: `artifacts/sanovim/dist/public`
+   - Função: `api/[...path].mjs` (`maxDuration` 60s)
+
+   **Deixe tudo no automático — não sobrescreva esses campos.**
+2. **Environment Variables** (Project → Settings → Environment Variables). Mínimo
+   para o funil público subir:
+
+   ```
+   DATABASE_URL      = postgresql://...supabase...   (pooler, porta 6543)
+   NODE_ENV          = production
+   PUBLIC_BASE_URL   = https://sanovim.vimsinc.com
+   CORS_ORIGINS      = https://sanovim.vimsinc.com
+   ANTHROPIC_API_KEY = sk-ant-...    (geração de quiz por IA)
+   SERPER_KEY        = ...           (temas mais buscados)
+   ```
+
+   Sem `DATABASE_URL` a função **não sobe** — é validado no import. A tabela
+   completa está em **"Variáveis de ambiente"** mais abaixo.
+3. **Deploy.** A Vercel builda e publica numa URL provisória
+   (`https://sanovim-xxx.vercel.app`). Confirme:
+   `curl -I https://<url>.vercel.app/api/healthz` → **200**.
+4. **Banco:** se o Supabase ainda não tiver o schema, rode **uma vez** do seu
+   terminal: `DATABASE_URL="...supabase..." pnpm --filter @workspace/db exec drizzle-kit push`.
+5. **Domínio:** Project → Settings → **Domains → Add** `sanovim.vimsinc.com`. A
+   Vercel mostra o alvo (`cname.vercel-dns.com`). No DNS de `vimsinc.com` crie
+   **CNAME `sanovim` → `cname.vercel-dns.com`**. O HTTPS é emitido sozinho.
+
+**Duas ressalvas honestas do caminho nativo** (por isso o contêiner ainda existe
+como opção):
+
+- **SEO de `/q/:slug`:** a função serverless serve **só o funil** (health, auth,
+  `/api/sales`); as páginas de quiz caem no `index.html` estático, **sem** a
+  injeção server-side de `<title>`/`<meta>`/JSON-LD por quiz. O funil funciona
+  100% (quiz, lead, WhatsApp), mas o ranqueamento por quiz no Google fica mais
+  fraco. Se isso importa, use o caminho de contêiner (B) — ou peça que eu mova o
+  handler de SEO (`salesSeo.ts`) para a função e adicione um rewrite `/q/*`.
+- **Vídeo/Reels (FFmpeg) e imagens (sharp):** ficam de fora do bundle serverless
+  (sem binário no runtime). Não afetam o funil; se precisar deles, use (B).
+
+---
+
+## Alternativa — host de contêiner (FFmpeg + SEO server-side completos)
+
+## Por que contêiner? (leia antes de decidir)
 
 A Vercel é ótima para **frontend estático + funções serverless**. O SANOVIM
 não é isso: é **um servidor Express de longa duração** que também:
@@ -28,9 +86,10 @@ não é isso: é **um servidor Express de longa duração** que também:
    funil público — quiz, captura de lead, WhatsApp — não exige login e
    funciona em qualquer lugar.**
 
-**Conclusão:** para "tudo funcionando" (o que você pediu), o encaixe honesto é
-um **host de contêiner**. A Vercel entra, no máximo, como opção de servir só o
-frontend apontando para a API hospedada em outro lugar (seção final).
+**Conclusão:** o **funil público inteiro** (quiz → lead → WhatsApp + IA) roda na
+**Vercel nativa** (seção acima). Escolha o **contêiner** apenas se precisar de
+**FFmpeg** (vídeo/Reels) ou do **SEO server-side por quiz** em `/q/:slug` — que
+exigem o servidor Express de longa duração.
 
 ---
 
