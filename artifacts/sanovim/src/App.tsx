@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import Generator from "@/pages/Generator";
 import Images from "@/pages/Images";
 import VideoEditor from "@/pages/VideoEditor";
+import Animations from "@/pages/Animations";
 import Experience from "@/pages/Experience";
 import Trending from "@/pages/Trending";
 import HistoryPage from "@/pages/HistoryPage";
@@ -65,6 +66,7 @@ function AppLayout() {
           <Route path="/generator" component={Generator} />
           <Route path="/images" component={Images} />
           <Route path="/video" component={VideoEditor} />
+          <Route path="/animations" component={Animations} />
           <Route path="/experience" component={Experience} />
           <Route path="/trending" component={Trending} />
           <Route path="/history" component={HistoryPage} />
